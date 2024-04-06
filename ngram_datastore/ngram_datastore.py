@@ -13,7 +13,12 @@ class NGramDatastore:
     def __init__(self):
         self.data = dict()
 
+    def search(self, ngram):
+        '''Can return either None or a tree'''
+        return self.get(ngram)
+    
     def get(self, ngram):
+        '''Can return either None or a tree'''
         return self.data[ngram]
     
     def insert(self, ngram, tree):
@@ -21,6 +26,8 @@ class NGramDatastore:
 
 
 class NGramDatastoreBuilder:
+    EXTENSION = '.pkl'
+
     def __init__(self, dataset_name: str, num_conversations: int, model_path: str, reader: Reader, ngram_n: int, num_top_ngrams: int) -> None:
         self.dataset_name = dataset_name
         self.num_conversations = num_conversations
@@ -30,8 +37,8 @@ class NGramDatastoreBuilder:
         self.num_top_ngrams = num_top_ngrams
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.datastore_dpath = Path("./ngram_datastore/built_datastores/")
-        self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.pkl"
-        self.top0_backing_datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0.pkl"
+        self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.{NGramDatastoreBuilder.EXTENSION}"
+        self.top0_backing_datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0.{NGramDatastoreBuilder.EXTENSION}"
         os.makedirs(self.datastore_dpath, exist_ok=True)
 
     @staticmethod
