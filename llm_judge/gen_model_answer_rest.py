@@ -61,7 +61,7 @@ def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p,
     
     torch.cuda.synchronize()
     start_time = time.time()
-    for idx in range(max_steps): 
+    for idx in tqdm(range(max_steps)): 
         candidates, tree_candidates, draft_buffers = generate_candidates_and_draft_buffer(
                 logits,
                 input_ids,
@@ -149,7 +149,7 @@ def run_eval(
 
     chunk_size = len(questions) // (num_gpus_total // num_gpus_per_model) # // 2
     ans_handles = []
-    for i in range(0, len(questions), chunk_size):
+    for i in tqdm(range(0, len(questions), chunk_size)):
         ans_handles.append(
             get_answers_func(
                 model_path,
@@ -207,86 +207,90 @@ def get_model_answers(
     question = questions[0]
 
     # warmup
-    for _ in range(3):
-        torch.manual_seed(0)
-        conv = get_conversation_template(model_id)
-        turns = []
-        idxs = []
-        new_tokens = []
-        wall_time = []
-        for j in range(len(question["turns"])):
-            qs = question["turns"][j]
-            conv.append_message(conv.roles[0], qs)
-            conv.append_message(conv.roles[1], None)
-            prompt = conv.get_prompt()
-            input_ids = tokenizer([prompt]).input_ids
+    # for _ in range(3):
+    #     torch.manual_seed(0)
+    #     conv = get_conversation_template(model_id)
+    #     turns = []
+    #     idxs = []
+    #     new_tokens = []
+    #     wall_time = []
+    #     for j in range(len(question["turns"])):
+    #         qs = question["turns"][j]
+    #         conv.append_message(conv.roles[0], qs)
+    #         conv.append_message(conv.roles[1], None)
+    #         prompt = conv.get_prompt()
+    #         input_ids = tokenizer([prompt]).input_ids
 
-            # if temperature < 1e-4:
-            #     do_sample = False
-            # else:
-            #     do_sample = True
+    #         # if temperature < 1e-4:
+    #         #     do_sample = False
+    #         # else:
+    #         #     do_sample = True
 
-            # some models may error out when generating long outputs
-            try:
-                output_ids, new_token, idx, _, start_time = rest_forward(
-                    torch.as_tensor(input_ids).cuda(),
-                    model,
-                    tokenizer,
-                    max_new_token,
-                    temperature,
-                    top_p,
-                    datastore,
-                    num_draft,
-                    token_spans,
-                )
-                torch.cuda.synchronize()
-                total_time = time.time() - start_time
-                output_ids = output_ids[0][len(input_ids[0]) :]
-                # be consistent with the template's stop_token_ids
-                if conv.stop_token_ids:
-                    stop_token_ids_index = [
-                        i
-                        for i, id in enumerate(output_ids)
-                        if id in conv.stop_token_ids
-                    ]
-                    if len(stop_token_ids_index) > 0:
-                        output_ids = output_ids[: stop_token_ids_index[0]]
+    #         # some models may error out when generating long outputs
+    #         try:
+    #             print("before the forward pass")
+    #             output_ids, new_token, idx, _, start_time = rest_forward(
+    #                 torch.as_tensor(input_ids).cuda(),
+    #                 model,
+    #                 tokenizer,
+    #                 max_new_token,
+    #                 temperature,
+    #                 top_p,
+    #                 datastore,
+    #                 num_draft,
+    #                 token_spans,
+    #             )
+    #             print("finished the forward pass")
+    #             torch.cuda.synchronize()
+    #             total_time = time.time() - start_time
+    #             output_ids = output_ids[0][len(input_ids[0]) :]
+    #             # be consistent with the template's stop_token_ids
+    #             if conv.stop_token_ids:
+    #                 stop_token_ids_index = [
+    #                     i
+    #                     for i, id in enumerate(output_ids)
+    #                     if id in conv.stop_token_ids
+    #                 ]
+    #                 if len(stop_token_ids_index) > 0:
+    #                     output_ids = output_ids[: stop_token_ids_index[0]]
 
-                output = tokenizer.decode(
-                    output_ids,
-                    spaces_between_special_tokens=False,
-                )
-                if conv.stop_str and output.find(conv.stop_str) > 0:
-                    output = output[: output.find(conv.stop_str)]
-                # for special_token in tokenizer.special_tokens_map.values():
-                #     if isinstance(special_token, list):
-                #         for special_tok in special_token:
-                #             output = output.replace(special_tok, "")
-                #     else:
-                #         output = output.replace(special_token, "")
-                # output = output.strip()
+    #             print("starting the tokenizer decode")
+    #             output = tokenizer.decode(
+    #                 output_ids,
+    #                 spaces_between_special_tokens=False,
+    #             )
+    #             if conv.stop_str and output.find(conv.stop_str) > 0:
+    #                 output = output[: output.find(conv.stop_str)]
+    #             # for special_token in tokenizer.special_tokens_map.values():
+    #             #     if isinstance(special_token, list):
+    #             #         for special_tok in special_token:
+    #             #             output = output.replace(special_tok, "")
+    #             #     else:
+    #             #         output = output.replace(special_token, "")
+    #             # output = output.strip()
 
-                if conv.name == "xgen" and output.startswith("Assistant:"):
-                    output = output.replace("Assistant:", "", 1).strip()
-            except RuntimeError as e:
-                print(f"question ID {question['question_id']} errored out with {e}")
-                output = "ERROR"
+    #             if conv.name == "xgen" and output.startswith("Assistant:"):
+    #                 output = output.replace("Assistant:", "", 1).strip()
+    #         except RuntimeError as e:
+    #             print(f"question ID {question['question_id']} errored out with {e}")
+    #             output = "ERROR"
 
-            turns.append(output)
-            idxs.append(int(idx))
-            new_tokens.append(int(new_token))
-            wall_time.append(total_time)
-            conv.messages[-1][-1] = output
-    print('Warmup done')
+    #         turns.append(output)
+    #         idxs.append(int(idx))
+    #         new_tokens.append(int(new_token))
+    #         wall_time.append(total_time)
+    #         conv.messages[-1][-1] = output
+    print('Skipping warmup done')
 
     accept_lengths_tree = []
-    for question in tqdm(questions):
+    for question in tqdm(questions[:5]):
         # if question["category"] in temperature_config:
         #     temperature = temperature_config[question["category"]]
         # else:
         #     temperature = 0.7
         choices = []
-        for i in range(num_choices):
+        # for i in range(num_choices):
+        for i in range(1):
             accept_lengths_tree_this = []
             torch.manual_seed(i)
             conv = get_conversation_template(model_id)
