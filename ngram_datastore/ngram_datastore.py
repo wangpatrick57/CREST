@@ -7,8 +7,20 @@ from tqdm import tqdm
 import os
 import time
 import pickle
+        
 
 class NGramDatastore:
+    def __init__(self):
+        self.data = dict()
+
+    def get(self, ngram):
+        return self.data[ngram]
+    
+    def insert(self, ngram, tree):
+        self.data[ngram] = tree
+
+
+class NGramDatastoreBuilder:
     def __init__(self, dataset_name: str, num_conversations: int, model_path: str, reader: Reader, ngram_n: int, num_top_ngrams: int) -> None:
         self.dataset_name = dataset_name
         self.num_conversations = num_conversations
@@ -18,8 +30,8 @@ class NGramDatastore:
         self.num_top_ngrams = num_top_ngrams
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.datastore_dpath = Path("./ngram_datastore/built_datastores/")
-        self.datastore_path = self.datastore_dpath / f"{NGramDatastore.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.pkl"
-        self.top0_backing_datastore_path = self.datastore_dpath / f"{NGramDatastore.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0.pkl"
+        self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.pkl"
+        self.top0_backing_datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0.pkl"
         os.makedirs(self.datastore_dpath, exist_ok=True)
 
     @staticmethod
@@ -29,8 +41,8 @@ class NGramDatastore:
         else:
             raise AssertionError
 
-    def build(self) -> None:
-        self.datastore = dict()
+    def build(self) -> NGramDatastore:
+        datastore = NGramDatastore()
 
         if self.dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
             ngrams = get_ngrams_from_sharegpt(self.tokenizer, self.dataset_name, self.ngram_n, self.num_conversations, self.num_top_ngrams)
@@ -42,7 +54,7 @@ class NGramDatastore:
 
         if self.top0_backing_datastore_path.exists():
             print(f"Building with backing datastore {self.top0_backing_datastore_path}")
-            top0_backing_datastore = NGramDatastore.load(self.top0_backing_datastore_path)
+            top0_backing_datastore = NGramDatastoreBuilder.load(self.top0_backing_datastore_path)
         else:
             print(f"Building with reader")
             top0_backing_datastore = None
@@ -53,22 +65,24 @@ class NGramDatastore:
                 tree = top0_backing_datastore[ngram]
             else:
                 tree = self.reader.search(list(ngram))
-            self.datastore[ngram] = tree
+            datastore.insert(ngram, tree)
 
         with open(self.datastore_path, 'wb') as f:
-            pickle.dump(self.datastore, f)
+            pickle.dump(datastore, f)
     
-    def load_or_build(self) -> None:
+    def load_or_build(self) -> NGramDatastore:
         if os.path.exists(self.datastore_path):
             start_time = time.time()
-            self.datastore = NGramDatastore.load(self.datastore_path)
+            datastore = NGramDatastoreBuilder.load(self.datastore_path)
             duration = time.time() - start_time
             print(f"Took {duration}s to load {self.datastore_path}")
         else:
             start_time = time.time()
-            self.build()
+            datastore = self.build()
             duration = time.time() - start_time
             print(f"Took {duration}s to build {self.datastore_path}")
+        
+        return datastore
     
     @staticmethod
     def load(datastore_path: str) -> dict:

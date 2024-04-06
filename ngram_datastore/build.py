@@ -2,7 +2,7 @@ import click
 from pathlib import Path
 
 import draftretriever
-from ngram_datastore.ngram_datastore import NGramDatastore
+from ngram_datastore.ngram_datastore import NGramDatastoreBuilder
 
 @click.command()
 @click.option("--model-path", type=str, default="lmsys/vicuna-7b-v1.5")
@@ -15,8 +15,8 @@ def main(model_path: str, dataset_name: str, datastore_path: str, ngram_n: int, 
     reader = draftretriever.Reader(
         index_file_path=datastore_path,
     )
-    ngram_datastore = NGramDatastore(dataset_name, num_conversations, model_path, reader, ngram_n, num_top_ngrams)
-    ngram_datastore.load_or_build()
+    datastore_builder = NGramDatastoreBuilder(dataset_name, num_conversations, model_path, reader, ngram_n, num_top_ngrams)
+    datastore = datastore_builder.load_or_build()
 
 if __name__ == '__main__':
     main()
