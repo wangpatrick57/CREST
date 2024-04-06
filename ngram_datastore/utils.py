@@ -9,7 +9,9 @@ def get_ngrams_from_sharegpt(tokenizer: PreTrainedTokenizer, dataset_name: str, 
     all_ngram_counts = defaultdict(int)
     dataset = load_dataset(dataset_name, split='train')
     
-    for conversations in tqdm(islice(dataset, num_conversations)):
+    dataset_it = dataset if num_conversations == 0 else islice(dataset, num_conversations)
+
+    for conversations in tqdm(dataset_it):
         for sample in conversations['conversations']:
             tokens = tokenizer.encode(sample['value'])
             sample_ngrams = get_ngrams_from_list(tokens, ngram_n)
@@ -18,7 +20,8 @@ def get_ngrams_from_sharegpt(tokenizer: PreTrainedTokenizer, dataset_name: str, 
                 all_ngram_counts[sample_ngram] += 1
 
     sorted_ngram_counts = sorted(all_ngram_counts.items(), key=(lambda item : (-item[1], item[0])))
-    top_ngrams = [ngram for ngram, _ in sorted_ngram_counts][:num_top_ngrams]
+    sorted_ngrams = [ngram for ngram, _ in sorted_ngram_counts]
+    top_ngrams = sorted_ngrams if num_top_ngrams == 0 else sorted_ngrams[:num_top_ngrams]
     return top_ngrams
 
 def get_ngrams_from_list(l: List[str], ngram_n: int) -> Set[Tuple[str]]:
