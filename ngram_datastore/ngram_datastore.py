@@ -1,3 +1,4 @@
+from pathlib import Path
 from draftretriever import Reader
 from ngram_datastore.utils import *
 from transformers import AutoTokenizer
@@ -16,8 +17,9 @@ class NGramDatastore:
         self.ngram_n = ngram_n
         self.num_top_ngrams = num_top_ngrams
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        self.datastore_dpath = f"./ngram_datastore/built_datastores/"
-        self.datastore_path = os.path.join(self.datastore_dpath, f"{NGramDatastore.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.pkl")
+        self.datastore_dpath = Path("./ngram_datastore/built_datastores/")
+        self.datastore_path = self.datastore_dpath / f"{NGramDatastore.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.pkl"
+        self.top0_backing_datastore_path = self.datastore_dpath / f"{NGramDatastore.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0.pkl"
         os.makedirs(self.datastore_dpath, exist_ok=True)
 
     @staticmethod
@@ -33,13 +35,24 @@ class NGramDatastore:
         if self.dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
             ngrams = get_ngrams_from_sharegpt(self.tokenizer, self.dataset_name, self.ngram_n, self.num_conversations, self.num_top_ngrams)
         elif self.dataset_name == "bigcode/the-stack":
-            pass # TODO: make function to read ngrams from the stack dataset
+            raise AssertionError()
         else:
             print("We only support Aeala/ShareGPT_Vicuna_unfiltered or bigcode/the-stack datasets for now")
             quit()
 
+        if self.top0_backing_datastore_path.exists():
+            print(f"Building with backing datastore {self.top0_backing_datastore_path}")
+            top0_backing_datastore = NGramDatastore.load(self.top0_backing_datastore_path)
+        else:
+            print(f"Building with reader")
+            top0_backing_datastore = None
+
         for ngram in tqdm(ngrams):
-            tree = self.reader.search(list(ngram))
+            # The backing datastore is equivalent to the reader and is much faster to query
+            if top0_backing_datastore != None:
+                tree = top0_backing_datastore[ngram]
+            else:
+                tree = self.reader.search(list(ngram))
             self.datastore[ngram] = tree
 
         with open(self.datastore_path, 'wb') as f:
@@ -48,8 +61,7 @@ class NGramDatastore:
     def load_or_build(self) -> None:
         if os.path.exists(self.datastore_path):
             start_time = time.time()
-            with open(self.datastore_path, 'rb') as f:
-                self.datastore = pickle.load(f)
+            self.datastore = NGramDatastore.load(self.datastore_path)
             duration = time.time() - start_time
             print(f"Took {duration}s to load {self.datastore_path}")
         else:
@@ -57,3 +69,8 @@ class NGramDatastore:
             self.build()
             duration = time.time() - start_time
             print(f"Took {duration}s to build {self.datastore_path}")
+    
+    @staticmethod
+    def load(datastore_path: str) -> dict:
+        with open(datastore_path, 'rb') as f:
+            return pickle.load(f)
