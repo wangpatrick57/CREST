@@ -16,9 +16,16 @@ class NGramDatastore:
         self.ngram_n = ngram_n
         self.num_top_ngrams = num_top_ngrams
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        self.datastore_dpath = f"./datastore/ngram/{dataset_name}/"
-        self.datastore_path = os.path.join(self.datastore_dpath, f"n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.pkl")
+        self.datastore_dpath = f"./ngram_datastore/built_datastores/"
+        self.datastore_path = os.path.join(self.datastore_dpath, f"{NGramDatastore.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top{num_top_ngrams}.pkl")
         os.makedirs(self.datastore_dpath, exist_ok=True)
+
+    @staticmethod
+    def get_abbr_dataset_name(dataset_name: str) -> str:
+        if dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
+            return "sharegpt"
+        else:
+            raise AssertionError
 
     def build(self) -> None:
         self.datastore = dict()
