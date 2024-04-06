@@ -55,7 +55,7 @@ else:
     dataset = load_dataset('Aeala/ShareGPT_Vicuna_unfiltered', split='train')
     total_length = len(dataset)
     date_string = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    with open(f'share_gpt_three_four_data_{date_string}.csv', 'w') as f:
+    with open(f'experiments/share_gpt_three_four_data_{date_string}.csv', 'w') as f:
         f.write(f'i,three,four\n')
         for i, conversations in enumerate(tqdm(dataset, total=total_length)):
             for sample in conversations['conversations']:

@@ -21,6 +21,6 @@ plt.legend()
 # Show plot
 plt.grid(True)
 if str(dataset) == "large":
-    plt.savefig('ultra_chat_graph.png')
+    plt.savefig('experiments/ultra_chat_graph.png')
 else:
-    plt.savefig('sharegpt_chat_graph.png')
+    plt.savefig('experiments/sharegpt_chat_graph.png')
