@@ -26,7 +26,7 @@ class NGramDatastore:
     
     def get(self, ngram):
         '''Can return either None or a tree'''
-        return self.data[ngram]
+        return self.data[(ngram, )]
     
     def insert(self, ngram, tree):
         self.data[ngram] = tree
@@ -53,7 +53,8 @@ class NGramDatastoreBuilder:
         include_all_tag = "-include-all" if include_all else ""
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.datastore_dpath = Path("./ngram_datastore/built_datastores/")
-        self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}.{NGramDatastoreBuilder.EXTENSION}"
+        self.datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n1-convs0-top0.pkl"
+        # self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}.{NGramDatastoreBuilder.EXTENSION}"
         self.top0_backing_datastore_path = {}   # a dict of backing paths for include-all option
         if include_all:
             for ngram in range(1, ngram_n+1):
@@ -124,6 +125,7 @@ class NGramDatastoreBuilder:
 
     def load_or_build(self) -> NGramDatastore:
         if os.path.exists(self.datastore_path):
+            print("Loading the datastore from exisitng datastore file")
             start_time = time.time()
             datastore = NGramDatastore(self.datastore_path, True)
             duration = time.time() - start_time
