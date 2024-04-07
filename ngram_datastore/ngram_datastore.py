@@ -9,11 +9,22 @@ import os
 import time
 import pickle
 import lzma
+import psycopg2
         
 
 class NGramDatastore:
     def __init__(self):
         self.data = dict()
+        self.conn = psycopg2.connect(
+            dbname="rest",
+            user="postgres",
+            host="localhost",
+            port=5432
+        )
+        cursor = self.conn.cursor()
+        with open("ngram_datastore/schema.ddl") as f:
+            cursor.execute(f.read())
+        quit()
 
     def search(self, ngram):
         '''Can return either None or a tree'''
