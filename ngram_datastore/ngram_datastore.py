@@ -1,6 +1,5 @@
 from pathlib import Path
 from draftretriever import Reader
-import psutil
 from ngram_datastore.utils import *
 from transformers import AutoTokenizer
 from tqdm import tqdm
@@ -13,18 +12,39 @@ import psycopg2
         
 
 class NGramDatastore:
-    def __init__(self, unique_id: str, should_load: bool):
+    CREATE_STMT = """
+    CREATE TABLE IF NOT EXISTS ngram_datastore (
+        id SERIAL PRIMARY KEY,
+        ngram integer[] UNIQUE NOT NULL,
+        compressed_pickled_tree bytea NOT NULL
+    )"""
+
+    INSERT_STMT = """
+    INSERT INTO ngram_datastore (ngram, compressed_pickled_tree) 
+    VALUES (%s, %s)
+    """
+
+    SELECT_STMT = """
+    SELECT compressed_pickled_tree FROM ngram_datastore 
+    WHERE ngram = %s
+    """
+
+    def __init__(self, unique_id: str):
         self.data = dict()
         self.conn = psycopg2.connect(
-            dbname="rest",
-            user="postgres",
+            dbname="postgres",
+            user="rest_user",
+            password="rest_password",
             host="localhost",
-            port=5432
+            port=5433
         )
-        cursor = self.conn.cursor()
-        with open("ngram_datastore/schema.ddl") as f:
-            cursor.execute(f.read())
-        quit()
+        self.cursor = self.conn.cursor()
+
+    def load(self):
+        pass
+
+    def build_init(self):
+        self.cursor.execute(NGramDatastore.CREATE_STMT)
 
     def search(self, ngram):
         '''Can return either None or a tree'''
@@ -36,15 +56,20 @@ class NGramDatastore:
     
     def get(self, ngram):
         '''Can return either None or a tree'''
-        return pickle.loads(lzma.decompress(self.data[ngram]))
+        self.cursor.execute(NGramDatastore.SELECT_STMT, (list(ngram),))
+        row = self.cursor.fetchone()
+        compressed_pickled_tree = row[0]
+        tree = pickle.loads(lzma.decompress(compressed_pickled_tree))
+        return tree
     
     def insert(self, ngram, tree):
-        self.data[ngram] = lzma.compress(pickle.dumps(tree))
+        compressed_pickled_tree = lzma.compress(pickle.dumps(tree))
+        self.cursor.execute(NGramDatastore.INSERT_STMT, (list(ngram), compressed_pickled_tree))
+        self.conn.commit()
 
-    def save(self, path):
-        with open(path, 'wb') as f:
-            pickle.dump(self, f)
-    
+    def exists(self):
+        pass
+
 
 class NGramDatastoreBuilder:
     EXTENSION = 'pkl'
@@ -93,18 +118,19 @@ class NGramDatastoreBuilder:
         return ngrams
     
 
-    def get_backing_datastore(self, path: str):
+    def get_backing_datastore(self, path: str) -> NGramDatastore | None:
+        backing_datastore = NGramDatastore(path)
         if path.exists():
             print(f"Building with backing datastore {path}")
-            top0_backing_datastore = NGramDatastore(path, True)
+            backing_datastore.load()
+            return backing_datastore
         else:
             print(f"Building with reader")
-            top0_backing_datastore = None
-        return top0_backing_datastore
+            return None
 
 
-    def build(self) -> NGramDatastore:
-        datastore = NGramDatastore(None, False)
+    def build(self, datastore: NGramDatastore):
+        datastore.build_init()
 
         if self.include_all:
             for num_ngram in range(1, self.ngram_n+1):
@@ -127,20 +153,19 @@ class NGramDatastoreBuilder:
                 else:
                     tree = self.reader.search(list(ngram))
                 datastore.insert(ngram, tree)
-
-        datastore.save(self.datastore_path)
-        return datastore
     
 
     def load_or_build(self) -> NGramDatastore:
-        if os.path.exists(self.datastore_path):
+        datastore = NGramDatastore(self.datastore_path)
+        
+        if datastore.exists():
             start_time = time.time()
-            datastore = NGramDatastore(self.datastore_path, True)
+            datastore.load(self.datastore_path)
             duration = time.time() - start_time
             print(f"Took {duration}s to load {self.datastore_path}")
         else:
             start_time = time.time()
-            datastore = self.build()
+            self.build(datastore)
             duration = time.time() - start_time
             print(f"Took {duration}s to build {self.datastore_path}")
         
