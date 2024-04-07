@@ -10,8 +10,11 @@ import pickle
         
 
 class NGramDatastore:
-    def __init__(self):
+    def __init__(self, unique_id: str, should_load: bool):
         self.data = dict()
+        if should_load:
+            with open(unique_id, 'rb') as f:
+                self.data = pickle.load(f).data
 
     def search(self, ngram):
         '''Can return either None or a tree'''
@@ -28,6 +31,10 @@ class NGramDatastore:
     def insert(self, ngram, tree):
         self.data[ngram] = tree
 
+    def save(self, path):
+        with open(path, 'wb') as f:
+            pickle.dump(self, f)
+    
 
 class NGramDatastoreBuilder:
     EXTENSION = 'pkl'
@@ -79,7 +86,7 @@ class NGramDatastoreBuilder:
     def get_backing_datastore(self, path: str):
         if path.exists():
             print(f"Building with backing datastore {path}")
-            top0_backing_datastore = NGramDatastoreBuilder.load(path)
+            top0_backing_datastore = NGramDatastore(path, True)
         else:
             print(f"Building with reader")
             top0_backing_datastore = None
@@ -87,7 +94,7 @@ class NGramDatastoreBuilder:
 
 
     def build(self) -> NGramDatastore:
-        datastore = NGramDatastore()
+        datastore = NGramDatastore(None, False)
 
         if self.include_all:
             for num_ngram in range(1, self.ngram_n+1):
@@ -106,19 +113,19 @@ class NGramDatastoreBuilder:
             for ngram in tqdm(ngrams):
                 # The backing datastore is equivalent to the reader and is much faster to query
                 if top0_backing_datastore != None:
-                    tree = top0_backing_datastore[ngram]
+                    tree = top0_backing_datastore.get(ngram)
                 else:
                     tree = self.reader.search(list(ngram))
                 datastore.insert(ngram, tree)
 
-        with open(self.datastore_path, 'wb') as f:
-            pickle.dump(datastore, f)
+        datastore.save(self.datastore_path)
+        return datastore
     
 
     def load_or_build(self) -> NGramDatastore:
         if os.path.exists(self.datastore_path):
             start_time = time.time()
-            datastore = NGramDatastoreBuilder.load(self.datastore_path)
+            datastore = NGramDatastore(self.datastore_path, True)
             duration = time.time() - start_time
             print(f"Took {duration}s to load {self.datastore_path}")
         else:
@@ -129,7 +136,3 @@ class NGramDatastoreBuilder:
         
         return datastore
     
-    @staticmethod
-    def load(datastore_path: str) -> NGramDatastore:
-        with open(datastore_path, 'rb') as f:
-            return pickle.load(f)
