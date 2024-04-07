@@ -1,4 +1,4 @@
-from pathlib import Path
+from typing import Union
 from draftretriever import Reader
 from ngram_datastore.utils import *
 from transformers import AutoTokenizer
@@ -29,7 +29,7 @@ class NGramDatastore:
     WHERE ngram = %s
     """
 
-    def __init__(self, unique_id: str):
+    def __init__(self, dbname: str):
         self.data = dict()
         self.conn = psycopg2.connect(
             dbname="postgres",
@@ -38,13 +38,34 @@ class NGramDatastore:
             host="localhost",
             port=5433
         )
-        self.cursor = self.conn.cursor()
+        self.dbname = dbname.replace(".", "point").replace("-", "_")
 
     def load(self):
-        pass
+        self.conn.close()
+        self.conn = psycopg2.connect(
+            dbname=self.dbname,
+            user="rest_user",
+            password="rest_password",
+            host="localhost",
+            port=5433
+        )
 
     def build_init(self):
-        self.cursor.execute(NGramDatastore.CREATE_STMT)
+        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = self.conn.cursor()
+        cursor.execute(f"CREATE DATABASE {self.dbname}")
+        self.conn.commit()
+        self.conn.close()
+        self.conn = psycopg2.connect(
+            dbname=self.dbname,
+            user="rest_user",
+            password="rest_password",
+            host="localhost",
+            port=5433
+        )
+        cursor = self.conn.cursor()
+        cursor.execute(NGramDatastore.CREATE_STMT)
+        cursor.close()
 
     def search(self, ngram):
         '''Can return either None or a tree'''
@@ -56,19 +77,27 @@ class NGramDatastore:
     
     def get(self, ngram):
         '''Can return either None or a tree'''
-        self.cursor.execute(NGramDatastore.SELECT_STMT, (list(ngram),))
-        row = self.cursor.fetchone()
+        cursor = self.conn.cursor()
+        cursor.execute(NGramDatastore.SELECT_STMT, (list(ngram),))
+        row = cursor.fetchone()
+        cursor.close()
         compressed_pickled_tree = row[0]
         tree = pickle.loads(lzma.decompress(compressed_pickled_tree))
         return tree
     
     def insert(self, ngram, tree):
         compressed_pickled_tree = lzma.compress(pickle.dumps(tree))
-        self.cursor.execute(NGramDatastore.INSERT_STMT, (list(ngram), compressed_pickled_tree))
+        cursor = self.conn.cursor()
+        cursor.execute(NGramDatastore.INSERT_STMT, (list(ngram), compressed_pickled_tree))
+        cursor.close()
         self.conn.commit()
 
     def exists(self):
-        pass
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (self.dbname,))
+        exists = cursor.fetchone() is not None
+        cursor.close()
+        return exists
 
 
 class NGramDatastoreBuilder:
@@ -87,18 +116,15 @@ class NGramDatastoreBuilder:
         self.include_all = include_all
         include_all_tag = "-include-all" if include_all else ""
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        self.datastore_dpath = Path("./ngram_datastore/built_datastores/")
-        self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}.{NGramDatastoreBuilder.EXTENSION}"
-        self.top0_backing_datastore_path = {}   # a dict of backing paths for include-all option
+        self.datastore_dbname = f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}"
+        self.top0_backing_datastores = {} # a dict of backing dbnames for include-all option
         if include_all:
             for ngram in range(1, ngram_n+1):
-                path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{ngram}-convs{num_conversations}-top0.{NGramDatastoreBuilder.EXTENSION}"
-                self.top0_backing_datastore_path[ngram] = path
+                dbname = f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{ngram}-convs{num_conversations}-top0"
+                self.top0_backing_datastores[ngram] = self.get_backing_datastore(dbname)
         else:
-            path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0.{NGramDatastoreBuilder.EXTENSION}"
-            self.top0_backing_datastore_path[self.ngram_n] = path
-
-        os.makedirs(self.datastore_dpath, exist_ok=True)
+            dbname = f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0"
+            self.top0_backing_datastores[self.ngram_n] = self.get_backing_datastore(dbname)
 
     @staticmethod
     def get_abbr_dataset_name(dataset_name: str) -> str:
@@ -118,10 +144,10 @@ class NGramDatastoreBuilder:
         return ngrams
     
 
-    def get_backing_datastore(self, path: str) -> NGramDatastore | None:
-        backing_datastore = NGramDatastore(path)
-        if path.exists():
-            print(f"Building with backing datastore {path}")
+    def get_backing_datastore(self, dbname: str):
+        backing_datastore = NGramDatastore(dbname)
+        if backing_datastore.exists():
+            print(f"Building with backing datastore {dbname}")
             backing_datastore.load()
             return backing_datastore
         else:
@@ -135,7 +161,7 @@ class NGramDatastoreBuilder:
         if self.include_all:
             for num_ngram in range(1, self.ngram_n+1):
                 ngrams = self.get_ngrams_from_dataset(num_ngram)
-                top0_backing_datastore = self.get_backing_datastore(self.top0_backing_datastore_path[num_ngram])
+                top0_backing_datastore = self.top0_backing_datastores[num_ngram]
                 for ngram in tqdm(ngrams):
                     # The backing datastore is equivalent to the reader and is much faster to query
                     if top0_backing_datastore != None:
@@ -145,7 +171,7 @@ class NGramDatastoreBuilder:
                     datastore.insert(ngram, tree)
         else:
             ngrams = self.get_ngrams_from_dataset(self.ngram_n)
-            top0_backing_datastore = self.get_backing_datastore(self.top0_backing_datastore_path[self.ngram_n])
+            top0_backing_datastore = self.top0_backing_datastores[self.ngram_n]
             for ngram in tqdm(ngrams):
                 # The backing datastore is equivalent to the reader and is much faster to query
                 if top0_backing_datastore != None:
@@ -156,18 +182,18 @@ class NGramDatastoreBuilder:
     
 
     def load_or_build(self) -> NGramDatastore:
-        datastore = NGramDatastore(self.datastore_path)
+        datastore = NGramDatastore(self.datastore_dbname)
         
         if datastore.exists():
             start_time = time.time()
-            datastore.load(self.datastore_path)
+            datastore.load()
             duration = time.time() - start_time
-            print(f"Took {duration}s to load {self.datastore_path}")
+            print(f"Took {duration}s to load {self.datastore_dbname}")
         else:
             start_time = time.time()
             self.build(datastore)
             duration = time.time() - start_time
-            print(f"Took {duration}s to build {self.datastore_path}")
+            print(f"Took {duration}s to build {self.datastore_dbname}")
         
         return datastore
     
