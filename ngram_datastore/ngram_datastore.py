@@ -12,7 +12,7 @@ import psycopg2
         
 
 class NGramDatastore:
-    CREATE_STMT = """
+    CREATE_TABLE_STMT = """
     CREATE TABLE IF NOT EXISTS ngram_datastore (
         id SERIAL PRIMARY KEY,
         ngram integer[] UNIQUE NOT NULL,
@@ -64,7 +64,7 @@ class NGramDatastore:
             port=5433
         )
         cursor = self.conn.cursor()
-        cursor.execute(NGramDatastore.CREATE_STMT)
+        cursor.execute(NGramDatastore.CREATE_TABLE_STMT)
         cursor.close()
 
     def search(self, ngram):
