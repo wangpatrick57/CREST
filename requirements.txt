@@ -12,3 +12,4 @@ sentencepiece
 protobuf
 shortuuid
 click
+psycopg2
