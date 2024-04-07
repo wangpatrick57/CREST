@@ -1,5 +1,6 @@
 from pathlib import Path
 from draftretriever import Reader
+import psutil
 from ngram_datastore.utils import *
 from transformers import AutoTokenizer
 from tqdm import tqdm
@@ -7,6 +8,7 @@ from tqdm import tqdm
 import os
 import time
 import pickle
+import lzma
         
 
 class NGramDatastore:
@@ -19,10 +21,10 @@ class NGramDatastore:
     
     def get(self, ngram):
         '''Can return either None or a tree'''
-        return self.data[ngram]
+        return pickle.loads(lzma.decompress(self.data[ngram]))
     
     def insert(self, ngram, tree):
-        self.data[ngram] = tree
+        self.data[ngram] = lzma.compress(pickle.dumps(tree))
 
 
 class NGramDatastoreBuilder:
