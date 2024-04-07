@@ -5,10 +5,12 @@ from tqdm import tqdm
 from itertools import islice
 from collections import defaultdict
 
-def get_ngrams_from_sharegpt(tokenizer: PreTrainedTokenizer, dataset_name: str, ngram_n: int, num_conversations: int, num_top_ngrams: int) -> Set[Tuple[str]]:
+
+# returns ngrams with specifically ngram_n number of ngrams
+def get_ngrams_from_sharegpt(tokenizer: PreTrainedTokenizer, dataset_name: str, ngram_n: int, num_conversations: int, num_top_ngrams: int, merge_ratio: float) -> Set[Tuple[str]]:
     all_ngram_counts = defaultdict(int)
     dataset = load_dataset(dataset_name, split='train')
-    
+
     dataset_it = dataset if num_conversations == 0 else islice(dataset, num_conversations)
 
     for conversations in tqdm(dataset_it):
@@ -21,7 +23,13 @@ def get_ngrams_from_sharegpt(tokenizer: PreTrainedTokenizer, dataset_name: str, 
 
     sorted_ngram_counts = sorted(all_ngram_counts.items(), key=(lambda item : (-item[1], item[0])))
     sorted_ngrams = [ngram for ngram, _ in sorted_ngram_counts]
-    top_ngrams = sorted_ngrams if num_top_ngrams == 0 else sorted_ngrams[:num_top_ngrams]
+
+    if merge_ratio != 0.0:
+        top_ngrams = sorted_ngrams[:int(len(sorted_ngrams) * merge_ratio)]
+    elif num_top_ngrams != 0:
+        top_ngrams = sorted_ngrams[:num_top_ngrams]
+    else:
+        top_ngrams = sorted_ngrams
     return top_ngrams
 
 def get_ngrams_from_list(l: List[str], ngram_n: int) -> Set[Tuple[str]]:
