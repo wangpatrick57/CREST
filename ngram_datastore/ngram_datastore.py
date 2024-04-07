@@ -26,7 +26,7 @@ class NGramDatastore:
 
 
 class NGramDatastoreBuilder:
-    EXTENSION = '.pkl'
+    EXTENSION = 'pkl'
 
     def __init__(self, dataset_name: str, num_conversations: int, model_path: str, reader: Reader, ngram_n: int, num_top_ngrams: int) -> None:
         self.dataset_name = dataset_name
