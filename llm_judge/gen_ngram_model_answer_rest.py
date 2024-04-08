@@ -147,7 +147,8 @@ def run_eval(
     # with open(f"data/{args.bench_name}/model_ids/{args.model_id}.shuffled_ids", "w") as fout:
     #     json.dump(shuffled_ids, fout)
 
-    token_spans = list(range(2, max_token_span+1))[::-1]
+    # token_spans = list(range(2, max_token_span+1))[::-1]
+    token_spans = list(range(1, 5))[::-1]
     print("loading the n_gram datastore ... using the builder")
     # datastore = draftretriever.Reader(
     #             index_file_path=datastore_path,

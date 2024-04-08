@@ -51,6 +51,32 @@ def get_ngrams_from_list(l: List[str], ngram_n: int) -> Set[Tuple[str]]:
     return set(tuple(l[i:i+ngram_n]) for i in range(len(l) - ngram_n + 1))
 
 
+def pad_path(path, length, pad_value=-2):
+    """
+    Pad the given path list with a specific value up to a specified length.
+    
+    Parameters:
+    - path (list): The original list that needs padding.
+    - length (int): The desired length of the padded list.
+    - pad_value (optional, default=-2): The value to use for padding.
+    
+    Returns:
+    - list: A new list based on the original path but padded to the desired length.
+    
+    Example:
+    >>> pad_path([1,2,3], 5)
+    [1, 2, 3, -2, -2]
+    
+    Note:
+    If the given path is already longer than the specified length, 
+    then no padding occurs, and the original path is returned.
+    """
+    
+    # Calculate the number of padding values needed by subtracting the length
+    # of the path from the desired length.
+    # Append the padding values to the original path and return the new list.
+    return path + [pad_value] * (length - len(path))
+
 def generate_ngram_candidates_and_draft_buffer(logits, input_ids, datastore, token_spans, top_p=0., temperature=1., max_num_draft=64, device="cuda"):
     """
     Generate candidates based on provided logits and indices.
@@ -87,7 +113,9 @@ def generate_ngram_candidates_and_draft_buffer(logits, input_ids, datastore, tok
         # Retrieve draft tokens from the datastore, and get draft buffer
         # retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(this_token, choices=max_num_draft)
         # print("the tokens are", tokens)
+        print("The tokens:", this_token)
         retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(tuple(this_token))
+        # retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(tuple([29901, 13]))
         # print("The retrieved token list is", len(retrieved_token_list))
     
         # No retrieved sequences

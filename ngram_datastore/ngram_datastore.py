@@ -27,9 +27,14 @@ class NGramDatastore:
         #     if tree is not None:
         #         return tree
         # return None
+        # print("looking for the ngram", ngram)
         if ngram in self.data:
-            return self.data[ngram]
-        return None
+            # print("Found the ngram")
+            tree = self.get(ngram)
+            # print("The length of the retrieved tree is", len(tree[0]))
+            # print("The retrieved tree is", tree[0])
+            return tree
+        return [], [], [], [], []
 
         # print("looking for the index")
         # ngram_key = tuple(ngram)
@@ -54,7 +59,6 @@ class NGramDatastore:
         return self.data[ngram]
     
     def insert(self, ngram, tree):
-        # print("inserting", ngram)
         self.data[ngram] = tree
 
     def save(self, path):
@@ -80,8 +84,6 @@ class NGramDatastoreBuilder:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.datastore_dpath = Path("./ngram_datastore/built_datastores/")
         self.datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n1-convs0-top0.pkl"
-        # self.datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n2-convs0-top0.pkl"
-        # self.datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n3-convs0-top0.pkl"
         # self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}.{NGramDatastoreBuilder.EXTENSION}"
         self.top0_backing_datastore_path = {}   # a dict of backing paths for include-all option
         if include_all:
