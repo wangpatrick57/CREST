@@ -177,9 +177,17 @@ class NGramDatastoreBuilder:
                 # The backing datastore is equivalent to the reader and is much faster to query
                 if top0_backing_datastore != None:
                     tree = top0_backing_datastore.get(ngram)
+                    datastore.insert(ngram, tree)
                 else:
-                    tree = self.reader.search(list(ngram))
-                datastore.insert(ngram, tree)
+                    try:
+                        tree = self.reader.search(list(ngram))
+                        datastore.insert(ngram, tree)
+                    except ValueError:
+                        # This is possible if cut_to_choices() doesn't cut it enough. See
+                        # lib.rs for more details.
+                        print("Encountered ValueError from search(). This is okay though.")
+                    except Exception:
+                        raise
     
 
     def load_or_build(self) -> NGramDatastore:

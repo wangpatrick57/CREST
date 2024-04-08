@@ -4,6 +4,7 @@ use ahash::AHashSet;
 use byteorder::{ReadBytesExt, WriteBytesExt, ByteOrder, LittleEndian};
 use parking_lot::Mutex;
 use pyo3::exceptions;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use std::fs::File;
@@ -352,6 +353,12 @@ impl Reader {
         let paths = cut_to_choices(verified, choices);
 
         let (draft_choices, max_branch) = get_draft_choices(paths.clone());
+
+        if draft_choices.len() > 64 {
+            // It might not be cut enough because cut_to_choices() is best effort, as mentioned in the comment above
+            // It's not the end of the world to just return an error in these cases
+            return Err(PyErr::new::<PyValueError, _>("draft_choices was not cut enough"));
+        }
 
         let (draft_attn_mask, tree_indices, draft_position_ids, retrieve_indices) = generate_draft_buffers(draft_choices.clone(), max_branch);
 
