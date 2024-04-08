@@ -78,12 +78,17 @@ def generate_ngram_candidates_and_draft_buffer(logits, input_ids, datastore, tok
         
     retrieved_token_list = []
     _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = [], [], [], []
+    # tokens = input_ids_extend.squeeze(0)[:].to("cpu").tolist()
+    # print("The token are", tokens)
+    # ngrams = get_ngrams_from_list(tokens, 3)
+    # for ngram in ngrams:
     for span_id, token_span in enumerate(token_spans):
         this_token = input_ids_extend.squeeze(0)[-token_span:].to("cpu").tolist()
         # Retrieve draft tokens from the datastore, and get draft buffer
         # retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(this_token, choices=max_num_draft)
-        # print("the token is", this_token)
-        retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.get(this_token[0])
+        # print("the tokens are", tokens)
+        retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(tuple(this_token))
+        # print("The retrieved token list is", len(retrieved_token_list))
     
         # No retrieved sequences
         if len(retrieved_token_list) == 0:

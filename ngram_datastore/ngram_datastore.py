@@ -15,20 +15,46 @@ class NGramDatastore:
         if should_load:
             with open(unique_id, 'rb') as f:
                 self.data = pickle.load(f).data
+        
+        # print("the keys are:")
+        # for key in self.data.keys():
+        #     print(key)
 
     def search(self, ngram):
         '''Can return either None or a tree'''
-        for i in range(len(ngram)):
-            tree = self.get(ngram[i:])
-            if tree is not None:
-                return tree
+        # for i in range(len(ngram)):
+        #     tree = self.get(ngram[i:])
+        #     if tree is not None:
+        #         return tree
+        # return None
+        if ngram in self.data:
+            return self.data[ngram]
         return None
+
+        # print("looking for the index")
+        # ngram_key = tuple(ngram)
+        # if ngram in self.data:
+        #     # print("found the ngram in the datastore", ngram_key)
+        #     tree = self.get(ngram)
+        #     print("The length of the retrieved tree is", len(tree[0]))
+        #     print("The retrieved tree is", tree[0])
+        #     return self.get(ngram)
+        # return [[], [], [], [], []]
+        # ngram_key = tuple(ngram)
+        # if (ngram_key) in self.data:
+        #     print("found the ngram in the datastore", ngram_key)
+        #     tree = self.get(ngram)
+        #     print("The length of the retrieved tree is", len(tree[0]))
+        #     print("The retrieved tree is", tree[0])
+        #     return self.get(ngram)
+        # return [[], [], [], [], []]
     
     def get(self, ngram):
         '''Can return either None or a tree'''
-        return self.data[(ngram, )]
+        return self.data[ngram]
     
     def insert(self, ngram, tree):
+        # print("inserting", ngram)
         self.data[ngram] = tree
 
     def save(self, path):
@@ -54,6 +80,8 @@ class NGramDatastoreBuilder:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.datastore_dpath = Path("./ngram_datastore/built_datastores/")
         self.datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n1-convs0-top0.pkl"
+        # self.datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n2-convs0-top0.pkl"
+        # self.datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n3-convs0-top0.pkl"
         # self.datastore_path = self.datastore_dpath / f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}.{NGramDatastoreBuilder.EXTENSION}"
         self.top0_backing_datastore_path = {}   # a dict of backing paths for include-all option
         if include_all:
@@ -96,6 +124,7 @@ class NGramDatastoreBuilder:
 
     def build(self) -> NGramDatastore:
         datastore = NGramDatastore(None, False)
+        print("CAlled the build function")
 
         if self.include_all:
             for num_ngram in range(1, self.ngram_n+1):
@@ -109,8 +138,24 @@ class NGramDatastoreBuilder:
                         tree = self.reader.search(list(ngram))
                     datastore.insert(ngram, tree)
         else:
+            print("include all false")
             ngrams = self.get_ngrams_from_dataset(self.ngram_n)
+
+            print("finished getting the ngrams from dataset")
             top0_backing_datastore = self.get_backing_datastore(self.top0_backing_datastore_path[self.ngram_n])
+            # first_ngram = ngrams[0]
+            # print("The index of the first ngram value", first_ngram)
+            # first_ngram_tree = self.reader.search(list(first_ngram))
+            # print(type("the first ngram tree", first_ngram_tree))
+            # first_ngram_tree = []
+            # count = 0
+            # for ngram in tqdm(ngrams):
+            #     if count == 0:
+            #         count = 1
+            #         first_ngram_tree = self.reader.search(list(ngram))
+            #     else:
+            #         datastore.insert(ngram, first_ngram_tree)
+
             for ngram in tqdm(ngrams):
                 # The backing datastore is equivalent to the reader and is much faster to query
                 if top0_backing_datastore != None:
