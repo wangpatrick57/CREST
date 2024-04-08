@@ -2,6 +2,11 @@
 
 Usage:
 python3 gen_model_answer.py --model-path lmsys/fastchat-t5-3b-v1.0 --model-id fastchat-t5-3b-v1.0
+
+Experiment Notes:
+Results for ngram_datastore/built_datastores/sharegpt-n1-convs0-top0.pkl
+accept_lengths_tree: 1.5516356638871072
+
 """
 import argparse
 import json
