@@ -6,6 +6,8 @@ FULL_DATASTORE_SIZES = {
     "Aeala/ShareGPT_Vicuna_unfiltered": {
         1: 26346275,
         2: 1667277603,
+        3: 7013245731,
+        4: 9751642915,
     },
     "unittest": {
         1: 1000,
@@ -18,6 +20,8 @@ NUM_NGRAMS = {
     "Aeala/ShareGPT_Vicuna_unfiltered": {
         1: 28598,
         2: 3720951,
+        3: 16178049,
+        4: 22687125,
     },
     "unittest": {
         1: 15,
