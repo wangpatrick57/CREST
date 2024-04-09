@@ -224,7 +224,8 @@ impl Reader {
         let results = Arc::new(Mutex::new(Vec::new()));
 
         // I think each sub index is a buffer/suffix pair
-        self.sub_indexes.par_iter_mut().for_each(
+        // self.sub_indexes.par_iter_mut().for_each(
+        self.sub_indexes.iter_mut().for_each(
             |sub_index| {
                 let mut start_of_indices = None;
                 let mut end_of_indices = None;

@@ -2,6 +2,13 @@
 
 Usage:
 python3 gen_model_answer.py --model-path lmsys/fastchat-t5-3b-v1.0 --model-id fastchat-t5-3b-v1.0
+
+Query Time Experiment
+100% 
+The query times were [0.011297399517692005, 0.010837333441789573, 0.013257533282740042, 0.010073466061536843, 0.010611533070914447, 0.01112013342208229, 0.012798799919740608, 0.012790999365582442, 0.010242199399120485, 0.011037533355799193]
+
+20%
+The query times were [0.010880200231137374, 0.012246266123838723, 0.01263973341944317, 0.010707533268335586, 0.010654266710237911, 0.010881533429104214, 0.011698133797229579, 0.012963000335730612, 0.01071686638169922, 0.010653400386217982]
 """
 import argparse
 import json
@@ -62,7 +69,7 @@ def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p,
     torch.cuda.synchronize()
     start_time = time.time()
     for idx in tqdm(range(max_steps)): 
-        candidates, tree_candidates, draft_buffers = generate_candidates_and_draft_buffer(
+        candidates, tree_candidates, draft_buffers, query_time = generate_candidates_and_draft_buffer(
                 logits,
                 input_ids,
                 datastore,
@@ -103,7 +110,7 @@ def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p,
             break
         if new_token > max_new_token:
             break
-    return input_ids, new_token, idx, accept_length_list, start_time
+    return input_ids, new_token, idx, accept_length_list, start_time, query_time
 
 def run_eval(
     model_path,
@@ -283,7 +290,9 @@ def get_model_answers(
     print('Skipping warmup done')
 
     accept_lengths_tree = []
-    for question in tqdm(questions[:5]):
+    query_times = []
+    print("The length of the questions is", len(questions))
+    for question in tqdm(questions):
         # if question["category"] in temperature_config:
         #     temperature = temperature_config[question["category"]]
         # else:
@@ -313,7 +322,7 @@ def get_model_answers(
                 # some models may error out when generating long outputs
                 try:
 
-                    output_ids, new_token, idx, accept_length_tree, start_time = rest_forward(
+                    output_ids, new_token, idx, accept_length_tree, start_time, query_time = rest_forward(
                         torch.as_tensor(input_ids).cuda(),
                         model,
                         tokenizer,
@@ -324,6 +333,8 @@ def get_model_answers(
                         num_draft,
                         token_spans,
                     )
+                    # query_times.append(query_time)
+
                     torch.cuda.synchronize()
                     total_time = time.time() - start_time
                     accept_lengths_tree.extend(accept_length_tree)
@@ -364,6 +375,7 @@ def get_model_answers(
             # torch.cuda.empty_cache()
             choices.append({"index": i, "turns": turns, "idxs": idxs, "new_tokens": new_tokens, "wall_time": wall_time, "accept_lengths:": accept_lengths_tree_this})
 
+        # print("The query times were", query_times)
         # Dump answers
         os.makedirs(os.path.dirname(answer_file), exist_ok=True)
         with open(os.path.expanduser(answer_file), "a") as fout:

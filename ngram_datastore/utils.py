@@ -113,7 +113,7 @@ def generate_ngram_candidates_and_draft_buffer(logits, input_ids, datastore, tok
         # Retrieve draft tokens from the datastore, and get draft buffer
         # retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(this_token, choices=max_num_draft)
         # print("the tokens are", tokens)
-        print("The tokens:", this_token)
+        # print("The tokens:", this_token)
         retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(tuple(this_token))
         # retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(tuple([29901, 13]))
         # print("The retrieved token list is", len(retrieved_token_list))

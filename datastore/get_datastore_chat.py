@@ -3,6 +3,13 @@ from transformers import AutoTokenizer
 import draftretriever
 from tqdm import tqdm
 import json
+from random import sample
+
+"""
+Experiment Notes:
+Size: 1.1G Time: [03:50<00:00, 230.93s/it]
+Size: Time:
+"""
 
 import argparse
 parser = argparse.ArgumentParser()
@@ -25,7 +32,7 @@ print(args)
 tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
 
-datastore_path = './datastore_chat_large.idx' if args.large_datastore else './datastore_chat_small.idx'
+datastore_path = './datastore_chat_large.idx' if args.large_datastore else './datastore_chat_small_1_percent.idx'
 writer = draftretriever.Writer(
     index_file_path=datastore_path,
     max_chunk_len=512*1024*1024,
@@ -40,8 +47,15 @@ if args.large_datastore:
             token_list = tokenizer.encode(sample)
             writer.add_entry(token_list)
 else:
-    dataset = load_dataset('Aeala/ShareGPT_Vicuna_unfiltered', split='train')
+    dataset = load_dataset('Aeala/ShareGPT_Vicuna_unfiltered', split='train[:1%]')
+    # sampled_dataset = 
+    print("The dataset type ", type(dataset))
+    print("finished loading the dataset")
     total_length = len(dataset)
+    # sample the conversations
+    # total_length = 24135
+    # shuffle the conversations
+    
     print("number of samples: ", total_length)
     for conversations in tqdm(dataset, total=total_length):
         for sample in conversations['conversations']:

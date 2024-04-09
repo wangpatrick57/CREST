@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import draftretriever
+import time
 
 def pad_path(path, length, pad_value=-2):
     """
@@ -84,7 +85,7 @@ def generate_candidates_and_draft_buffer(logits, input_ids, datastore, token_spa
     Returns:
     - tuple: Returns cartesian candidates and tree candidates.
     """
-
+    query_times = []
     # Greedy decoding: Select the most probable candidate from the original logits.
     if top_p == 0:
         candidates_logit = torch.argmax(logits[:, -1]).unsqueeze(0)
@@ -102,8 +103,14 @@ def generate_candidates_and_draft_buffer(logits, input_ids, datastore, token_spa
     for span_id, token_span in enumerate(token_spans):
         this_token = input_ids_extend.squeeze(0)[-token_span:].to("cpu").tolist()
         # Retrieve draft tokens from the datastore, and get draft buffer
+        # print("The start time was", start_time)
+        torch.cuda.synchronize()
+        start_time = time.perf_counter()
         retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(this_token, choices=max_num_draft)
-    
+        torch.cuda.synchronize()
+        total_query_time = time.perf_counter() - start_time
+        query_times.append(total_query_time * 1000)
+        # print("The finish time was", finish_time)
         # No retrieved sequences
         if len(retrieved_token_list) == 0:
             continue
@@ -119,6 +126,8 @@ def generate_candidates_and_draft_buffer(logits, input_ids, datastore, token_spa
         _tree_indices = [0, 1]
         _draft_position_ids = [0, 1]
         _retrieve_indices = [[0, 1]]
+
+        total_query_time = -1
     else:
         retrieved_position_token_list = [list(row) for row in zip(*retrieved_token_list)]
         retrieved_position_token_list = [[x for i, x in enumerate(sublist) if sublist.index(x) == i and x != -2] for sublist in retrieved_position_token_list]
@@ -150,7 +159,7 @@ def generate_candidates_and_draft_buffer(logits, input_ids, datastore, token_spa
     # Unsqueeze the tree candidates for dimension consistency.
     tree_candidates = tree_candidates.unsqueeze(0)
     
-    return cart_candidates, tree_candidates, draft_buffers
+    return cart_candidates, tree_candidates, draft_buffers, max(query_times)
 
 
 def tree_decoding(

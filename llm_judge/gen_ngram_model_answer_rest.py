@@ -82,7 +82,7 @@ def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p,
     torch.cuda.synchronize()
     start_time = time.time()
     for idx in tqdm(range(max_steps)): 
-        print("pre calling the generate function")
+        # print("pre calling the generate function")
         # candidates, tree_candidates, draft_buffers = generate_candidates_and_draft_buffer(
         candidates, tree_candidates, draft_buffers = generate_ngram_candidates_and_draft_buffer(
                 logits,
@@ -158,7 +158,7 @@ def run_eval(
     # datastore = draftretriever.Reader(
     #             index_file_path=datastore_path,
     #         )
-    datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n1-convs0-top0..pkl"
+    datastore_path = "/home/ubuntu/REST/ngram_datastore/built_datastores/sharegpt-n1-convs0-merge0.1.pkl"
     datastore = NGramDatastoreBuilder(dataset_name, num_conversations, model_path, reader, ngram_n, num_top_ngrams, False, 0.0).load_or_build()
     print("datastore loaded!")
     # Split the question file into `num_gpus` files
