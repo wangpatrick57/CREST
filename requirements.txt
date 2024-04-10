@@ -12,4 +12,4 @@ sentencepiece
 protobuf
 shortuuid
 click
-psycopg2
+psycopg2-binary
