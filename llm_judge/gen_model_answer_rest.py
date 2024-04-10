@@ -283,7 +283,7 @@ def get_model_answers(
     print('Skipping warmup done')
 
     accept_lengths_tree = []
-    for question in tqdm(questions[:5]):
+    for question in tqdm(questions[:2]):
         # if question["category"] in temperature_config:
         #     temperature = temperature_config[question["category"]]
         # else:

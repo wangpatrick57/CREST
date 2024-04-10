@@ -213,6 +213,7 @@ def run_eval(
     max_token_span,
     ngram_datastore_settings: NGramDatastoreSettings,
     accept_length_fpath,
+    num_benchmark_convs,
 ):
     questions = load_questions(question_file, question_begin, question_end)
     # random shuffle the questions to balance the loading
@@ -258,6 +259,7 @@ def run_eval(
                 token_spans,
                 ngram_datastore_settings,
                 accept_length_fpath,
+                num_benchmark_convs,
             )
         )
 
@@ -310,6 +312,7 @@ def get_model_answers(
     token_spans,
     ngram_datastore_settings: NGramDatastoreSettings,
     accept_length_fpath,
+    num_benchmark_convs,
 ):
     
     model = RestModel.from_pretrained(
@@ -408,7 +411,7 @@ def get_model_answers(
     print('Skipping warmup done')
 
     accept_lengths_tree = []
-    for question in tqdm(questions[:80]):
+    for question in tqdm(questions[:num_benchmark_convs]):
         # if question["category"] in temperature_config:
         #     temperature = temperature_config[question["category"]]
         # else:
@@ -633,6 +636,11 @@ if __name__ == "__main__":
         "--accept-length-fpath",
         type=str,
     )
+    parser.add_argument(
+        "-b",
+        "--num-benchmark-convs",
+        type=int,
+    )
 
     args = parser.parse_args()
 
@@ -674,6 +682,7 @@ if __name__ == "__main__":
         args.max_token_span,
         ngram_datastore_settings,
         args.accept_length_fpath,
+        args.num_benchmark_convs,
     )
 
     reorg_answer_file(answer_file)
