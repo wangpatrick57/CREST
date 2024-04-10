@@ -32,7 +32,7 @@ print(args)
 tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
 
-datastore_path = './datastore_chat_large.idx' if args.large_datastore else './datastore_chat_small_1_percent.idx'
+datastore_path = './datastore_chat_large.idx' if args.large_datastore else './datastore_chat_small.idx'
 writer = draftretriever.Writer(
     index_file_path=datastore_path,
     max_chunk_len=512*1024*1024,
@@ -47,7 +47,7 @@ if args.large_datastore:
             token_list = tokenizer.encode(sample)
             writer.add_entry(token_list)
 else:
-    dataset = load_dataset('Aeala/ShareGPT_Vicuna_unfiltered', split='train[:1%]')
+    dataset = load_dataset('Aeala/ShareGPT_Vicuna_unfiltered', split='train')
     # sampled_dataset = 
     print("The dataset type ", type(dataset))
     print("finished loading the dataset")

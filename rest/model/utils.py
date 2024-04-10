@@ -159,7 +159,7 @@ def generate_candidates_and_draft_buffer(logits, input_ids, datastore, token_spa
     # Unsqueeze the tree candidates for dimension consistency.
     tree_candidates = tree_candidates.unsqueeze(0)
     
-    return cart_candidates, tree_candidates, draft_buffers, max(query_times)
+    return cart_candidates, tree_candidates, draft_buffers
 
 
 def tree_decoding(

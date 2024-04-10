@@ -18,6 +18,7 @@ import time
 import shortuuid
 import torch
 import numpy as np
+import csv
 from tqdm import tqdm
 
 from fastchat.llm_judge.common import load_questions
@@ -69,7 +70,7 @@ def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p,
     torch.cuda.synchronize()
     start_time = time.time()
     for idx in tqdm(range(max_steps)): 
-        candidates, tree_candidates, draft_buffers, query_time = generate_candidates_and_draft_buffer(
+        candidates, tree_candidates, draft_buffers = generate_candidates_and_draft_buffer(
                 logits,
                 input_ids,
                 datastore,
@@ -110,7 +111,7 @@ def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p,
             break
         if new_token > max_new_token:
             break
-    return input_ids, new_token, idx, accept_length_list, start_time, query_time
+    return input_ids, new_token, idx, accept_length_list, start_time
 
 def run_eval(
     model_path,
@@ -322,7 +323,7 @@ def get_model_answers(
                 # some models may error out when generating long outputs
                 try:
 
-                    output_ids, new_token, idx, accept_length_tree, start_time, query_time = rest_forward(
+                    output_ids, new_token, idx, accept_length_tree, start_time = rest_forward(
                         torch.as_tensor(input_ids).cuda(),
                         model,
                         tokenizer,
@@ -389,6 +390,9 @@ def get_model_answers(
             }
             fout.write(json.dumps(ans_json) + "\n")
     print("accept_lengths_tree: ", np.mean(accept_lengths_tree))
+    with open("accept_lengths_tree.csv", "a", newline='') as fout:
+        writer = csv.writer(fout)
+        writer.writerow(["accept_lengths_tree: ", np.mean(accept_lengths_tree)])
 
 
 def reorg_answer_file(answer_file):
