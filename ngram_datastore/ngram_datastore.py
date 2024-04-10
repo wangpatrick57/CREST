@@ -13,8 +13,7 @@ import psycopg2
 class NGramDatastore:
     CREATE_TABLE_STMT = """
     CREATE TABLE IF NOT EXISTS ngram_datastore (
-        id SERIAL PRIMARY KEY,
-        ngram integer[] UNIQUE NOT NULL,
+        ngram integer[] PRIMARY KEY,
         compressed_pickled_tree bytea NOT NULL
     )"""
 
