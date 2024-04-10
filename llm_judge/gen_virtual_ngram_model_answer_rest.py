@@ -278,7 +278,7 @@ def get_filtered_ngrams(settings: NGramDatastoreSettings, tokenizer):
     ngram_ns_to_include = list(range(1, settings.ngram_n + 1)) if settings.include_all else [settings.ngram_n]
 
     for ngram_n in ngram_ns_to_include:
-        sorted_ngrams = fast_get_sorted_ngrams(settings.dataset_name, settings.ngram_n)
+        sorted_ngrams = fast_get_sorted_ngrams(settings.dataset_name, ngram_n)
 
         if settings.merge_ratio != 0.0:
             top_ngrams = sorted_ngrams[:int(len(sorted_ngrams) * settings.merge_ratio)]
