@@ -8,6 +8,7 @@ from collections import defaultdict
 
 # returns ngrams with specifically ngram_n number of ngrams
 def get_ngrams_from_sharegpt(tokenizer: PreTrainedTokenizer, dataset_name: str, ngram_n: int, num_conversations: int, num_top_ngrams: int, merge_ratio: float) -> Set[Tuple[str]]:
+    assert dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered"
     all_ngram_counts = defaultdict(int)
     dataset = load_dataset(dataset_name, split='train')
 
