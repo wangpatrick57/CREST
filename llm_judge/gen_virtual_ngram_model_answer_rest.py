@@ -212,6 +212,7 @@ def run_eval(
     num_draft,
     max_token_span,
     ngram_datastore_settings: NGramDatastoreSettings,
+    accept_length_fpath,
 ):
     questions = load_questions(question_file, question_begin, question_end)
     # random shuffle the questions to balance the loading
@@ -256,6 +257,7 @@ def run_eval(
                 num_draft,
                 token_spans,
                 ngram_datastore_settings,
+                accept_length_fpath,
             )
         )
 
@@ -264,8 +266,11 @@ def run_eval(
 
 
 def fast_get_sorted_ngrams(dataset_name, ngram_n):
-    with open(f"llm_judge/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set.pkl", "rb") as file:
-        return pickle.load(file)
+    top_str = "" if ngram_n <= 2 else "-top5M"
+    fpath = f"llm_judge/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set{top_str}.pkl"
+    with open(fpath, "rb") as file:
+        sorted_ngrams = pickle.load(file)
+        return sorted_ngrams
 
 
 def get_filtered_ngrams(settings: NGramDatastoreSettings, tokenizer):
@@ -304,6 +309,7 @@ def get_model_answers(
     num_draft,
     token_spans,
     ngram_datastore_settings: NGramDatastoreSettings,
+    accept_length_fpath,
 ):
     
     model = RestModel.from_pretrained(
@@ -402,7 +408,7 @@ def get_model_answers(
     print('Skipping warmup done')
 
     accept_lengths_tree = []
-    for question in tqdm(questions[:1]):
+    for question in tqdm(questions[:80]):
         # if question["category"] in temperature_config:
         #     temperature = temperature_config[question["category"]]
         # else:
@@ -431,6 +437,8 @@ def get_model_answers(
 
                 # some models may error out when generating long outputs
                 try:
+
+                    print(f"Running rest_forward for conversation {i} turn {j}")
 
                     output_ids, new_token, idx, accept_length_tree, start_time = rest_forward(
                         torch.as_tensor(input_ids).cuda(),
@@ -496,7 +504,9 @@ def get_model_answers(
                 "tstamp": time.time(),
             }
             fout.write(json.dumps(ans_json) + "\n")
-    print("accept_lengths_tree: ", np.mean(accept_lengths_tree))
+
+    with open(accept_length_fpath, "w") as f:
+        f.write(f"{np.mean(accept_lengths_tree)}")
 
 
 def reorg_answer_file(answer_file):
@@ -618,6 +628,11 @@ if __name__ == "__main__":
         "--merge-ratio",
         type=float,
     )
+    parser.add_argument(
+        "-o",
+        "--accept-length-fpath",
+        type=str,
+    )
 
     args = parser.parse_args()
 
@@ -657,7 +672,8 @@ if __name__ == "__main__":
         args.datastore_path,
         args.num_draft,
         args.max_token_span,
-        ngram_datastore_settings
+        ngram_datastore_settings,
+        args.accept_length_fpath,
     )
 
     reorg_answer_file(answer_file)
