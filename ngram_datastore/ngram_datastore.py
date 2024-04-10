@@ -13,8 +13,7 @@ import psycopg2
 class NGramDatastore:
     CREATE_TABLE_STMT = """
     CREATE TABLE IF NOT EXISTS ngram_datastore (
-        id SERIAL PRIMARY KEY,
-        ngram integer[] UNIQUE NOT NULL,
+        ngram integer[] PRIMARY KEY,
         compressed_pickled_tree bytea NOT NULL
     )"""
 
@@ -65,6 +64,13 @@ class NGramDatastore:
         cursor = self.conn.cursor()
         cursor.execute(NGramDatastore.CREATE_TABLE_STMT)
         cursor.close()
+
+    def build_end(self):
+        self.conn.autocommit = True
+        cursor = self.conn.cursor()
+        # optimize space
+        cursor.execute("VACUUM FULL ngram_datastore")
+        cursor.execute("REINDEX TABLE ngram_datastore")
 
     def search(self, ngram):
         '''Can return either None or a tree'''
@@ -187,6 +193,8 @@ class NGramDatastoreBuilder:
                         print("Encountered ValueError from search(). This is okay though.")
                     except Exception:
                         raise
+        
+        datastore.build_end()
     
 
     def load_or_build(self) -> NGramDatastore:
