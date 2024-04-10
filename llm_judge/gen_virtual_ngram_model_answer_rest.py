@@ -6,6 +6,7 @@ python3 gen_model_answer.py --model-path lmsys/fastchat-t5-3b-v1.0 --model-id fa
 import argparse
 import json
 import os
+import pickle
 import random
 import time
 import shortuuid
@@ -21,6 +22,7 @@ import transformers
 
 import sys
 
+from ngram_datastore.ngram_datastore import NGramDatastoreBuilder
 from ngram_datastore.utils import get_ngrams_from_sharegpt
 sys.path.append("../")
 
@@ -261,11 +263,9 @@ def run_eval(
         ray.get(ans_handles)
 
 
-def fast_get_sorted_ngrams(dataset_name, ngram_n, tokenizer):
-    if dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
-        return get_ngrams_from_sharegpt(tokenizer, dataset_name, ngram_n, 10, 0, 0)
-    else:
-        assert False
+def fast_get_sorted_ngrams(dataset_name, ngram_n):
+    with open(f"llm_judge/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set.pkl", "rb") as file:
+        return pickle.load(file)
 
 
 def get_filtered_ngrams(settings: NGramDatastoreSettings, tokenizer):
@@ -273,7 +273,7 @@ def get_filtered_ngrams(settings: NGramDatastoreSettings, tokenizer):
     ngram_ns_to_include = list(range(1, settings.ngram_n + 1)) if settings.include_all else [settings.ngram_n]
 
     for ngram_n in ngram_ns_to_include:
-        sorted_ngrams = fast_get_sorted_ngrams(settings.dataset_name, settings.ngram_n, tokenizer)
+        sorted_ngrams = fast_get_sorted_ngrams(settings.dataset_name, settings.ngram_n)
 
         if settings.merge_ratio != 0.0:
             top_ngrams = sorted_ngrams[:int(len(sorted_ngrams) * settings.merge_ratio)]
