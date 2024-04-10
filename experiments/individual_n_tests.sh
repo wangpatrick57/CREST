@@ -1,7 +1,7 @@
 #!/bin/bash
 NUM_BENCHMARK_CONVS=20
 ngram_ns=(1 2 3 4 5 6)
-merge_ratios=(0.01 0.02 0.04 0.08 0.16 0.32 0.64 0)
+merge_ratios=(0.01 0.02 0.04 0.08 0.16 0.32 0.64 1.0)
 
 for ngram_n in "${ngram_ns[@]}"; do
     for merge_ratio in "${merge_ratios[@]}"; do
