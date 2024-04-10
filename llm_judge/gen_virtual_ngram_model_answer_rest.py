@@ -22,6 +22,7 @@ import transformers
 
 import sys
 
+from ngram_datastore.build_ngram_pickles import NGRAM_PICKLE_CUTOFFS
 from ngram_datastore.ngram_datastore import NGramDatastoreBuilder
 from ngram_datastore.utils import get_ngrams_from_sharegpt
 sys.path.append("../")
@@ -268,8 +269,7 @@ def run_eval(
 
 
 def fast_get_sorted_ngrams(dataset_name, ngram_n):
-    top_str = "" if ngram_n <= 2 else "-top5M"
-    fpath = f"llm_judge/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set{top_str}.pkl"
+    fpath = f"./ngram_datastore/ngram_pickles/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl"
     with open(fpath, "rb") as file:
         sorted_ngrams = pickle.load(file)
         return sorted_ngrams
