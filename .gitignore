@@ -1,6 +1,7 @@
 # Generated files
 *.idx
 *.csv
+!collected_output.csv
 *.pkl
 *.out
 *.jsonl

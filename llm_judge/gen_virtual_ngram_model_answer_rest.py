@@ -268,30 +268,32 @@ def run_eval(
         ray.get(ans_handles)
 
 
-def fast_get_sorted_ngrams(dataset_name, ngram_n):
+def fast_get_sorted_ngrams_and_counts(dataset_name, ngram_n):
     fpath = f"./ngram_datastore/ngram_pickles/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl"
     with open(fpath, "rb") as file:
-        sorted_ngrams = pickle.load(file)
-        return sorted_ngrams
+        sorted_ngrams_and_counts = pickle.load(file)
+        return sorted_ngrams_and_counts
 
 
-def get_filtered_ngrams(settings: NGramDatastoreSettings, tokenizer):
+def get_filtered_ngrams(settings: NGramDatastoreSettings):
     filtered_ngrams = set()
     ngram_ns_to_include = list(range(1, settings.ngram_n + 1)) if settings.include_all else [settings.ngram_n]
 
     for ngram_n in ngram_ns_to_include:
-        sorted_ngrams = fast_get_sorted_ngrams(settings.dataset_name, ngram_n)
+        sorted_ngrams_and_counts = fast_get_sorted_ngrams_and_counts(settings.dataset_name, ngram_n)
+        print(f"sorted_ngrams_and_counts={sorted_ngrams_and_counts}")
 
         if settings.merge_ratio != 0.0:
-            top_ngrams = sorted_ngrams[:int(len(sorted_ngrams) * settings.merge_ratio)]
+            top_ngrams_and_counts = sorted_ngrams_and_counts[:int(len(sorted_ngrams_and_counts) * settings.merge_ratio)]
         elif settings.num_top_ngrams != 0:
-            top_ngrams = sorted_ngrams[:settings.num_top_ngrams]
+            top_ngrams_and_counts = sorted_ngrams_and_counts[:settings.num_top_ngrams]
         else:
-            top_ngrams = sorted_ngrams
+            top_ngrams_and_counts = sorted_ngrams_and_counts
         
-        for top_ngram in top_ngrams:
+        for top_ngram, _ in top_ngrams_and_counts:
             filtered_ngrams.add(top_ngram)
     
+    print(f"filtered_ngrams={filtered_ngrams}")
     return filtered_ngrams
 
 
@@ -332,7 +334,7 @@ def get_model_answers(
     
     question = questions[0]
 
-    filtered_ngrams = get_filtered_ngrams(ngram_datastore_settings, tokenizer)
+    filtered_ngrams = get_filtered_ngrams(ngram_datastore_settings)
 
     # warmup
     # for _ in range(3):
@@ -507,6 +509,8 @@ def get_model_answers(
                 "tstamp": time.time(),
             }
             fout.write(json.dumps(ans_json) + "\n")
+
+    print(f"np.mean(accept_lengths_tree)={np.mean(accept_lengths_tree)}")
 
     with open(accept_length_fpath, "w") as f:
         f.write(f"{np.mean(accept_lengths_tree)}")
