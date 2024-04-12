@@ -34,10 +34,10 @@ for i in range(segment):
 print("data_files:", data_files)
 
 dataset = load_dataset('bigcode/the-stack-dedup', \
-    data_dir='data/python', split='train', data_files=data_files)
+    data_dir='data/python', split='train[:32%]', data_files=data_files)
 
 
-datastore_path = './datastore_stack_large.idx' if args.large_datastore else './datastore_stack_small.idx'
+datastore_path = './datastore_stack_large.idx' if args.large_datastore else './datastore_stack_small_32_percent.idx'
 writer = draftretriever.Writer(
     index_file_path=datastore_path,
     max_chunk_len=512 * 1024 * 1024,

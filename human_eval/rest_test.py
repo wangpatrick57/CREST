@@ -13,6 +13,7 @@ from tqdm import tqdm
 import time
 import argparse
 
+from itertools import islice
 from dataset import HumanEvalDataset
 
 def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature, top_p, max_new_token):
@@ -24,34 +25,51 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
     token_spans = list(range(2, max_token_span + 1))[::-1]
     print("token_spans: ", token_spans)
 
-    for sample in tqdm(dataset, total=len(dataset)):
+    # for sample in tqdm(dataset, total=len(dataset)):
+    slice_dataset = islice(dataset, 20)
+    for sample in tqdm(slice_dataset):
         prompt = sample['prompt']
 
         accept_lengths_tree = []
         with torch.inference_mode():
+            # Initialize the past key and value states
+            print("1. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
+            if hasattr(model, "past_key_values"):
+                past_key_values = model.past_key_values
+                past_key_values_data = model.past_key_values_data
+                current_length_data = model.current_length_data
+                # Reset the past key and value states
+                current_length_data.zero_()
+            else:
+                (
+                    past_key_values,
+                    past_key_values_data,
+                    current_length_data,
+                ) = initialize_past_key_values(model.base_model)
+                model.past_key_values = past_key_values
+                model.past_key_values_data = past_key_values_data
+                model.current_length_data = current_length_data
 
-            past_key_values, past_key_values_data, current_length_data = initialize_past_key_values(model.base_model)
-            model.past_key_values = past_key_values
-            model.past_key_values_data = past_key_values_data
-            model.current_length_data = current_length_data
+            print("2. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
 
-            model.current_length_data.zero_() # this is for rerun
-
-
+            print("3. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
             new_token = 0
             input_ids = tokenizer([prompt]).input_ids
             input_len = len(input_ids[0])
             input_ids = torch.as_tensor(input_ids).cuda()
             model.base_model.model.draft_mask = None
+            print("4. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
             logits = initialize_logits(
                     input_ids, model, past_key_values
             )
             cur_length = input_len + 1
             accept_lengths_tree.append(1)
+            print("5. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
             
             torch.cuda.synchronize()
             start_time = time.time()
-            for i in range(2000):
+            for i in range(1024):
+                # print("18. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
                 candidates, tree_candidates, draft_buffers = generate_candidates_and_draft_buffer(
                         logits,
                         input_ids,
@@ -63,8 +81,10 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
                         device=model.base_model.device
                     )
                 
+                # print("6. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
                 model.base_model.model.draft_mask = draft_buffers["draft_attn_mask"]
 
+                # print("7. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
                 logits, outputs = tree_decoding(
                         model,
                         tree_candidates,
@@ -74,9 +94,11 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
                         draft_buffers["retrieve_indices"],
                     )
 
+                # print("8. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
                 best_candidate, accept_length = evaluate_posterior(
                         logits, candidates, temperature = temperature, top_p=top_p
                     )
+                # print("9. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
                 input_ids, logits, new_token = update_inference_inputs(
                         input_ids,
                         candidates,
@@ -90,18 +112,21 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
                         current_length_data,
                     )
                 
+                # print("10. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
                 accept_length_tree = input_ids.shape[1] - cur_length
                 cur_length = accept_length_tree + cur_length
                 accept_lengths_tree.append(accept_length_tree)
                 if model.tokenizer.eos_token_id in input_ids[0, input_len:] or new_token > max_new_token:
                     break
 
+            print("11. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
             torch.cuda.synchronize()
             total_time = time.time() - start_time
             avg_time_per_token = total_time / (new_token.cpu())
             avg_time_per_token_list.append(avg_time_per_token)
             avg_time_per_token_list_micro.append((total_time, new_token.cpu()))
             
+            print("12. The memory used is", torch.cuda.mem_get_info()[0], "the memory free is", torch.cuda.mem_get_info()[1])
             accept_lengths_tree_average.append(np.mean(accept_lengths_tree))
             accept_lengths_tree_average_micro.extend(accept_lengths_tree)
 
@@ -179,7 +204,7 @@ if __name__ == "__main__":
         args.model_path,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
-        device_map="auto"
+        device_map="auto",
     )
 
     tokenizer = model.get_tokenizer()
