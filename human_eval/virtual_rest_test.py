@@ -27,8 +27,6 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
     token_spans = list(range(1, max_token_span + 1))[::-1]
     print("token_spans: ", token_spans)
     filtered_ngrams = get_filtered_ngrams(ngram_datastore_settings)
-    print(f"len(filtered_ngrams)={len(filtered_ngrams)}, type(filtered_ngrams)={type(filtered_ngrams)}")
-    print(f"type(list(filtered_ngrams)[0])={type(list(filtered_ngrams)[0])}")
     dataset_it = dataset if num_benchmark_convs == 0 else islice(dataset, num_benchmark_convs)
 
     for sample in tqdm(dataset_it, total=len(dataset_it) if num_benchmark_convs == 0 else num_benchmark_convs):
@@ -129,6 +127,9 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
     print("avg_time_per_token_micro: ", np.sum([item[0] for item in avg_time_per_token_list_micro]) / np.sum([item[1] for item in avg_time_per_token_list_micro]))
     print("*"*30)
     print()
+
+    with open(accept_length_fpath, "w") as f:
+        f.write(f"{np.mean(accept_lengths_tree_average)}")
 
 
 if __name__ == "__main__":
