@@ -139,7 +139,8 @@ def run_eval(
     #     json.dump(shuffled_ids, fout)
 
     token_spans = list(range(2, max_token_span+1))[::-1]
-    print("loading the datastore ...")
+    # token_spans = list(range(1, 3))[::-1]
+    print("loading the datastore ...", datastore_path)
     datastore = draftretriever.Reader(
                 index_file_path=datastore_path,
             )
@@ -293,7 +294,7 @@ def get_model_answers(
     accept_lengths_tree = []
     query_times = []
     print("The length of the questions is", len(questions))
-    for question in tqdm(questions):
+    for question in tqdm(questions[:20]):
         # if question["category"] in temperature_config:
         #     temperature = temperature_config[question["category"]]
         # else:
@@ -390,9 +391,10 @@ def get_model_answers(
             }
             fout.write(json.dumps(ans_json) + "\n")
     print("accept_lengths_tree: ", np.mean(accept_lengths_tree))
-    with open("accept_lengths_tree.csv", "a", newline='') as fout:
+    # with open("accept_lengths_tree.csv", "a", newline='') as fout:
+    with open("accept_lengths_large.csv", "a", newline='') as fout:
         writer = csv.writer(fout)
-        writer.writerow(["accept_lengths_tree: ", np.mean(accept_lengths_tree)])
+        writer.writerow([np.mean(accept_lengths_tree)])
 
 
 def reorg_answer_file(answer_file):

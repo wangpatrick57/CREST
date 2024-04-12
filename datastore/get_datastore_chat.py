@@ -32,14 +32,14 @@ print(args)
 tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
 
-datastore_path = './datastore_chat_large.idx' if args.large_datastore else './datastore_chat_small.idx'
+datastore_path = './datastore_chat_large_1_percent.idx' if args.large_datastore else './datastore_chat_small_8_percent.idx'
 writer = draftretriever.Writer(
     index_file_path=datastore_path,
     max_chunk_len=512*1024*1024,
     vocab_size=tokenizer.vocab_size,
 )
 if args.large_datastore:
-    dataset = load_dataset('stingning/ultrachat', split='train')
+    dataset = load_dataset('stingning/ultrachat', split='train[:1%]')
     total_length = len(dataset)
     print("number of samples: ", total_length)
     for conversations in tqdm(dataset, total=total_length):
