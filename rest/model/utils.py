@@ -83,7 +83,6 @@ def get_filtered_ngrams(settings: NGramDatastoreSettings):
 
     for ngram_n in ngram_ns_to_include:
         sorted_ngrams_and_counts = get_ngrams_from_pickle(settings.dataset_name, ngram_n)
-        print(f"sorted_ngrams_and_counts={sorted_ngrams_and_counts}")
 
         if settings.merge_ratio != 0.0:
             top_ngrams_and_counts = sorted_ngrams_and_counts[:int(len(sorted_ngrams_and_counts) * settings.merge_ratio)]
@@ -95,7 +94,6 @@ def get_filtered_ngrams(settings: NGramDatastoreSettings):
         for top_ngram, _ in top_ngrams_and_counts:
             filtered_ngrams.add(top_ngram)
     
-    print(f"filtered_ngrams={filtered_ngrams}")
     return filtered_ngrams
 
 

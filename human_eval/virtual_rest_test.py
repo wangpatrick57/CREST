@@ -1,3 +1,4 @@
+from itertools import islice
 import os
 import sys
 
@@ -15,7 +16,7 @@ from tqdm import tqdm
 import time
 import argparse
 
-from dataset import HumanEvalDataset
+from human_eval.dataset import HumanEvalDataset
 
 def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature, top_p, max_new_token, ngram_datastore_settings: NGramDatastoreSettings, accept_length_fpath, num_benchmark_convs):
     accept_lengths_tree_average = []
@@ -23,12 +24,14 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
 
     accept_lengths_tree_average_micro = []
     avg_time_per_token_list_micro = []
-    token_spans = list(range(2, max_token_span + 1))[::-1]
+    token_spans = list(range(1, max_token_span + 1))[::-1]
     print("token_spans: ", token_spans)
-
     filtered_ngrams = get_filtered_ngrams(ngram_datastore_settings)
+    print(f"len(filtered_ngrams)={len(filtered_ngrams)}, type(filtered_ngrams)={type(filtered_ngrams)}")
+    print(f"type(list(filtered_ngrams)[0])={type(list(filtered_ngrams)[0])}")
+    dataset_it = dataset if num_benchmark_convs == 0 else islice(dataset, num_benchmark_convs)
 
-    for sample in tqdm(dataset, total=len(dataset)):
+    for sample in tqdm(dataset_it, total=len(dataset_it) if num_benchmark_convs == 0 else num_benchmark_convs):
         prompt = sample['prompt']
 
         accept_lengths_tree = []
@@ -139,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-path",
         type=str,
-        default="./HumanEval.jsonl.gz",
+        default="./human_eval/HumanEval.jsonl.gz",
         help="The path to the HumanEval dataset",
     )
     parser.add_argument(

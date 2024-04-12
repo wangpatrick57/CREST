@@ -15,7 +15,6 @@ NGRAM_PICKLE_CUTOFFS = {
     3: 1839587,
     4: 2064567,
     5: 2171748,
-    6: 2290130,
 }
 
 
@@ -23,9 +22,9 @@ def get_ngrams_from_list(l: List[str], n: int) -> Set[Tuple[str]]:
     return list(tuple(l[i:i+n]) for i in range(len(l) - n + 1))
 
 
-def store_ngram_pickles(model_path: str, dataset_name: str) -> None:
+def store_ngram_pickles(model_path: str, dataset_name: str, max_ngram_n: int) -> None:
     ngrams = dict()
-    for ngram_n in range(1, 7):
+    for ngram_n in range(1, max_ngram_n + 1):
         ngrams[ngram_n] = defaultdict(int)
 
     data_files = get_stack_data_files(False)
@@ -37,13 +36,13 @@ def store_ngram_pickles(model_path: str, dataset_name: str) -> None:
     for sample in tqdm(dataset_it):
         token_list = tokenizer.encode(sample['content'])
 
-        for ngram_n in range(1, 7):
+        for ngram_n in range(1, max_ngram_n + 1):
             this_ngrams = get_ngrams_from_list(token_list, ngram_n)
             
             for this_ngram in this_ngrams:
                 ngrams[ngram_n][this_ngram] += 1
-
-    for ngram_n in range(1, 7):
+            
+    for ngram_n in range(1, max_ngram_n + 1):
         ngrams[ngram_n] = sorted(ngrams[ngram_n].items(), key=lambda x:-x[1])
 
         with open(f"./ngram_datastore/ngram_pickles/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl", 'wb') as f:
@@ -66,4 +65,4 @@ if __name__ == "__main__":
     model_path = "codellama/CodeLlama-7b-instruct-hf"
     dataset_name = "bigcode/the-stack-dedup"
 
-    store_ngram_pickles(model_path, dataset_name)
+    store_ngram_pickles(model_path, dataset_name, 2)
