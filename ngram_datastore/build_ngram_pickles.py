@@ -65,4 +65,4 @@ if __name__ == "__main__":
     model_path = "codellama/CodeLlama-7b-instruct-hf"
     dataset_name = "bigcode/the-stack-dedup"
 
-    store_ngram_pickles(model_path, dataset_name, 2)
+    store_ngram_pickles(model_path, dataset_name, 5)
