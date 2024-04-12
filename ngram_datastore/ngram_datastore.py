@@ -135,6 +135,8 @@ class NGramDatastoreBuilder:
     def get_abbr_dataset_name(dataset_name: str) -> str:
         if dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
             return "sharegpt"
+        elif dataset_name == "bigcode/the-stack-dedup":
+            return "stack"
         else:
             raise AssertionError
 
@@ -142,7 +144,7 @@ class NGramDatastoreBuilder:
         print("Getting ngrams from dataset")
         if self.dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
             ngrams = get_ngrams_from_sharegpt(self.tokenizer, self.dataset_name, num_ngram, self.num_conversations, self.num_top_ngrams, self.merge_ratio)
-        elif self.dataset_name == "bigcode/the-stack":
+        elif self.dataset_name == "bigcode/the-stack-dedup":
             raise AssertionError()
         else:
             print("We only support Aeala/ShareGPT_Vicuna_unfiltered or bigcode/the-stack datasets for now")

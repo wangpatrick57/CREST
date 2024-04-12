@@ -34,89 +34,6 @@ from rest.model.kv_cache import initialize_past_key_values
 import draftretriever
 
 
-def virtual_generate_candidates_and_draft_buffer(logits, input_ids, datastore, token_spans, filtered_ngrams, top_p=0., temperature=1., max_num_draft=64, device="cuda"):
-    """
-    Generate candidates based on provided logits and indices.
-    
-    Parameters:
-    - logits (torch.Tensor): Original logits.
-    - tree_indices (list or torch.Tensor): Indices associated with a tree structure.
-    - retrieve_indices (list or torch.Tensor): Indices for retrieving candidates.
-    
-    Returns:
-    - tuple: Returns cartesian candidates and tree candidates.
-    """
-
-    # Greedy decoding: Select the most probable candidate from the original logits.
-    if top_p == 0:
-        candidates_logit = torch.argmax(logits[:, -1]).unsqueeze(0)
-    else:
-        assert top_p < 1, "top_p should between 0.0 and 1"
-        next_token_logits = logits[:, -1, :]
-        next_token_logits = next_token_logits / (temperature if temperature > 0 else 1.)
-        filtered_logits = top_p_filtering(next_token_logits, top_p=top_p)
-        candidates_logit = torch.multinomial(F.softmax(filtered_logits, dim=-1), num_samples=1).squeeze(0)
-
-    input_ids_extend = torch.cat([input_ids.squeeze(0), candidates_logit], dim=-1)
-        
-    retrieved_token_list = []
-    _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = [], [], [], []
-    for span_id, token_span in enumerate(token_spans):
-        this_token = input_ids_extend.squeeze(0)[-token_span:].to("cpu").tolist()
-
-        if tuple(this_token) in filtered_ngrams:
-            # Retrieve draft tokens from the datastore, and get draft buffer
-            retrieved_token_list, _draft_attn_mask, _tree_indices, _draft_position_ids, _retrieve_indices = datastore.search(this_token, choices=max_num_draft)
-    
-        # No retrieved sequences
-        if len(retrieved_token_list) == 0:
-            continue
-        # Break because this span has hitted
-        else:
-            break
-    # TODO: just continue to the next retrieval process
-    if len(retrieved_token_list) == 0:
-        # Just randomlt guess one token
-        random_index = 100
-        retrieved_position_token_list = [[random_index]]
-        _draft_attn_mask = [[1., 0.], [1., 1.]]
-        _tree_indices = [0, 1]
-        _draft_position_ids = [0, 1]
-        _retrieve_indices = [[0, 1]]
-    else:
-        retrieved_position_token_list = [list(row) for row in zip(*retrieved_token_list)]
-        retrieved_position_token_list = [[x for i, x in enumerate(sublist) if sublist.index(x) == i and x != -2] for sublist in retrieved_position_token_list]
-        TOPK = max(len(retrieved_position_token) for retrieved_position_token in retrieved_position_token_list)
-        retrieved_position_token_list = [pad_path(retrieved_position_token, TOPK) for retrieved_position_token in retrieved_position_token_list]
-        
-    # Aggregate the generated buffers into a dictionary and Move the tensors in the dictionary to the specified device
-    draft_buffers = {
-        "draft_attn_mask": torch.tensor(_draft_attn_mask, device=device).unsqueeze(0).unsqueeze(0),
-        "tree_indices": torch.tensor(_tree_indices, device=device),
-        "draft_position_ids": torch.tensor(_draft_position_ids, device=device),
-        "retrieve_indices": torch.tensor(_retrieve_indices, device=device),
-        }
-    
-    candidates_draft_logits = torch.tensor(retrieved_position_token_list, dtype=torch.long, device=candidates_logit.device).contiguous()
-
-    # Combine the selected candidate from the original logits with the draft logits.
-    candidates = torch.cat([candidates_logit, candidates_draft_logits.view(-1)], dim=-1)
-
-    # Map the combined candidates to the tree indices to get tree candidates.
-    tree_candidates = candidates[draft_buffers["tree_indices"]]
-
-    # Extend the tree candidates by appending a zero.
-    tree_candidates_ext = torch.cat([tree_candidates, torch.zeros((1), dtype=torch.long, device=tree_candidates.device)], dim=0)
-
-    # Retrieve the cartesian candidates using the retrieve indices.
-    cart_candidates = tree_candidates_ext[draft_buffers["retrieve_indices"]]
-
-    # Unsqueeze the tree candidates for dimension consistency.
-    tree_candidates = tree_candidates.unsqueeze(0)
-    
-    return cart_candidates, tree_candidates, draft_buffers
-
-
 def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p, datastore, num_draft, token_spans, filtered_ngrams, max_steps=1024):
     assert input_ids.shape[0] == 1, "Only support batch size 1 for now!!"
     # Avoid modifying the input_ids in-place
@@ -266,35 +183,6 @@ def run_eval(
 
     if use_ray:
         ray.get(ans_handles)
-
-
-def fast_get_sorted_ngrams_and_counts(dataset_name, ngram_n):
-    fpath = f"./ngram_datastore/ngram_pickles/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl"
-    with open(fpath, "rb") as file:
-        sorted_ngrams_and_counts = pickle.load(file)
-        return sorted_ngrams_and_counts
-
-
-def get_filtered_ngrams(settings: NGramDatastoreSettings):
-    filtered_ngrams = set()
-    ngram_ns_to_include = list(range(1, settings.ngram_n + 1)) if settings.include_all else [settings.ngram_n]
-
-    for ngram_n in ngram_ns_to_include:
-        sorted_ngrams_and_counts = fast_get_sorted_ngrams_and_counts(settings.dataset_name, ngram_n)
-        print(f"sorted_ngrams_and_counts={sorted_ngrams_and_counts}")
-
-        if settings.merge_ratio != 0.0:
-            top_ngrams_and_counts = sorted_ngrams_and_counts[:int(len(sorted_ngrams_and_counts) * settings.merge_ratio)]
-        elif settings.num_top_ngrams != 0:
-            top_ngrams_and_counts = sorted_ngrams_and_counts[:settings.num_top_ngrams]
-        else:
-            top_ngrams_and_counts = sorted_ngrams_and_counts
-        
-        for top_ngram, _ in top_ngrams_and_counts:
-            filtered_ngrams.add(top_ngram)
-    
-    print(f"filtered_ngrams={filtered_ngrams}")
-    return filtered_ngrams
 
 
 @torch.inference_mode()
