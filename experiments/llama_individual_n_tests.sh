@@ -1,5 +1,5 @@
 #!/bin/bash
-NUM_BENCHMARK_CONVS=1
+NUM_BENCHMARK_CONVS=20
 
 # # Use this for testing since it completes the fastest
 # RAYON_NUM_THREADS=6 CUDA_VISIBLE_DEVICES=0 python3 -m human_eval.virtual_rest_test --model-path codellama/CodeLlama-7b-instruct-hf --datastore-path ./datastore/datastore_stack_small.idx -n1 -t0 -m1.0 -b1 -o"experiments/llama_individual_n_tests_outputs/accept_length_n2_m1.0-b1.out"
