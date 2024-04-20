@@ -11,8 +11,8 @@ from ngram_datastore.ngram_datastore import NGramDatastoreBuilder
 @click.option("--datastore-path", type=str, default="./datastore/datastore_chat_small.idx")
 @click.option("--ngram-n", "-n", type=int, default=3)               # number of ngrams to build the datastore on
 @click.option('--include-all', '-a', is_flag=True)                  # includes all ngrams up to ngram_n. Specify either num_top_ngrams or merge_ratio for keeping only a few when merging
-@click.option("--num-conversations", "-c", type=int, default=10)    # number of conversations to build the datstore
-@click.option("--num-top-ngrams", "-t", type=int, default=10)       # for keeping in the datastore
+@click.option("--num-conversations", "-c", type=int, default=0)    # number of conversations to build the datstore
+@click.option("--num-top-ngrams", "-t", type=int, default=0)       # for keeping in the datastore
 @click.option('--merge-ratio', '-r',type=float, default=0.0)        # merge ratio. If not specified, merging defaults to choosing top N
 def main(model_path: str, dataset_name: str, datastore_path: str, ngram_n: int, num_conversations: int, num_top_ngrams: int, include_all: bool, merge_ratio: float):
     if num_top_ngrams == 0:

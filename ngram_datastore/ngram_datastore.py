@@ -1,7 +1,6 @@
-from typing import Union
 from draftretriever import Reader
-from ngram_datastore.build_ngram_pickles import get_ngrams_from_pickle
-from ngram_datastore.utils import NGRAM_PICKLE_CUTOFFS, get_abbr_dataset_name
+from ngram_datastore.ngram_datastore_settings import NGramDatastoreSettings
+from ngram_datastore.utils import NGRAM_PICKLE_CUTOFFS, get_abbr_dataset_name, get_filtered_ngrams
 from transformers import AutoTokenizer
 from tqdm import tqdm
 
@@ -9,7 +8,8 @@ import time
 import pickle
 import lzma
 import psycopg2
-        
+
+
 
 class NGramDatastore:
     CREATE_TABLE_STMT = """
@@ -156,7 +156,8 @@ class NGramDatastoreBuilder:
 
         if self.include_all:
             for ngram_n in range(1, self.max_ngram_n+1):
-                ngrams = get_ngrams_from_pickle(self.dataset_name, self.ngram_n)
+                ngram_datastore_settings = NGramDatastoreSettings(self.dataset_name, ngram_n, self.include_all, self.num_conversations, self.num_top_ngrams, self.merge_ratio)
+                ngrams = get_filtered_ngrams(ngram_datastore_settings)
                 top_cutoff_backing_datastore = self.top_cutoff_backing_datastores[ngram_n]
                 for ngram in tqdm(ngrams, desc="ngram_datastore.NGramDatastoreBuilder.build.0"):
                     # The backing datastore is equivalent to the reader and is much faster to query
@@ -166,7 +167,8 @@ class NGramDatastoreBuilder:
                         tree = self.reader.search(list(ngram))
                     datastore.insert(ngram, tree)
         else:
-            ngrams = get_ngrams_from_pickle(self.dataset_name, self.max_ngram_n)
+            ngram_datastore_settings = NGramDatastoreSettings(self.dataset_name, self.max_ngram_n, self.include_all, self.num_conversations, self.num_top_ngrams, self.merge_ratio)
+            ngrams = get_filtered_ngrams(ngram_datastore_settings)
             top_cutoff_backing_datastore = self.top_cutoff_backing_datastores[self.max_ngram_n]
             for ngram in tqdm(ngrams, desc="ngram_datastore.NGramDatastoreBuilder.build.1"):
                 # The backing datastore is equivalent to the reader and is much faster to query

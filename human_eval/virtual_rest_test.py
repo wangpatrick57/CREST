@@ -3,6 +3,7 @@ import os
 import sys
 
 from ngram_datastore.ngram_datastore_settings import NGramDatastoreSettings
+from ngram_datastore.utils import get_filtered_ngrams
 sys.path.append("../")
 import torch
 from contextlib import contextmanager

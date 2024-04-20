@@ -4,11 +4,6 @@ import pickle
 import numpy as np
 import torch
 import torch.nn.functional as F
-import draftretriever
-
-from ngram_datastore.build_ngram_pickles import get_ngrams_from_pickle
-from ngram_datastore.ngram_datastore import NGramDatastoreBuilder
-from ngram_datastore.ngram_datastore_settings import NGramDatastoreSettings
 
 def pad_path(path, length, pad_value=-2):
     """
@@ -75,26 +70,6 @@ def reset_past_key_values(passed_key_values):
         for j in range(2):
             passed_key_values[i][j].current_length.fill_(0)
     return passed_key_values
-
-
-def get_filtered_ngrams(settings: NGramDatastoreSettings):
-    filtered_ngrams = set()
-    ngram_ns_to_include = list(range(1, settings.ngram_n + 1)) if settings.include_all else [settings.ngram_n]
-
-    for ngram_n in ngram_ns_to_include:
-        sorted_ngrams_and_counts = get_ngrams_from_pickle(settings.dataset_name, ngram_n)
-
-        if settings.merge_ratio != 0.0:
-            top_ngrams_and_counts = sorted_ngrams_and_counts[:int(len(sorted_ngrams_and_counts) * settings.merge_ratio)]
-        elif settings.num_top_ngrams != 0:
-            top_ngrams_and_counts = sorted_ngrams_and_counts[:settings.num_top_ngrams]
-        else:
-            top_ngrams_and_counts = sorted_ngrams_and_counts
-        
-        for top_ngram, _ in top_ngrams_and_counts:
-            filtered_ngrams.add(top_ngram)
-    
-    return filtered_ngrams
 
 
 def virtual_generate_candidates_and_draft_buffer(logits, input_ids, datastore, token_spans, filtered_ngrams, top_p=0., temperature=1., max_num_draft=64, device="cuda"):
