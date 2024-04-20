@@ -7,15 +7,7 @@ import pickle
 from itertools import islice
 
 from datastore.get_datastore_code import get_stack_data_files
-from ngram_datastore.ngram_datastore import NGramDatastoreBuilder
-
-NGRAM_PICKLE_CUTOFFS = {
-    1: 1597221,
-    2: 1643949,
-    3: 1839587,
-    4: 2064567,
-    5: 2171748,
-}
+from ngram_datastore.utils import NGRAM_PICKLE_CUTOFFS, get_abbr_dataset_name
 
 
 def get_ngrams_from_list(l: List[str], n: int) -> Set[Tuple[str]]:
@@ -45,14 +37,14 @@ def store_ngram_pickles(model_path: str, dataset_name: str, max_ngram_n: int) ->
     for ngram_n in range(1, max_ngram_n + 1):
         ngrams[ngram_n] = sorted(ngrams[ngram_n].items(), key=lambda x:-x[1])
 
-        with open(f"./ngram_datastore/ngram_pickles/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl", 'wb') as f:
+        with open(f"./ngram_datastore/ngram_pickles/{get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl", 'wb') as f:
             pickle.dump(ngrams[ngram_n][:NGRAM_PICKLE_CUTOFFS[ngram_n]], f)
         
         print(f"stored {ngram_n}-gram")
 
 
 def get_ngrams_from_pickle(dataset_name, ngram_n):
-    fpath = f"./ngram_datastore/ngram_pickles/{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl"
+    fpath = f"./ngram_datastore/ngram_pickles/{get_abbr_dataset_name(dataset_name)}-{ngram_n}gram-set-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}.pkl"
     with open(fpath, "rb") as file:
         sorted_ngrams_and_counts = pickle.load(file)
         return sorted_ngrams_and_counts

@@ -1,6 +1,7 @@
 from typing import Union
 from draftretriever import Reader
-from ngram_datastore.utils import *
+from ngram_datastore.build_ngram_pickles import get_ngrams_from_pickle
+from ngram_datastore.utils import NGRAM_PICKLE_CUTOFFS, get_abbr_dataset_name
 from transformers import AutoTokenizer
 from tqdm import tqdm
 
@@ -34,7 +35,7 @@ class NGramDatastore:
             user="rest_user",
             password="rest_password",
             host="localhost",
-            port=5433
+            port=5432
         )
         self.dbname = dbname.replace(".", "point").replace("-", "_")
 
@@ -45,7 +46,7 @@ class NGramDatastore:
             user="rest_user",
             password="rest_password",
             host="localhost",
-            port=5433
+            port=5432
         )
 
     def build_init(self):
@@ -59,7 +60,7 @@ class NGramDatastore:
             user="rest_user",
             password="rest_password",
             host="localhost",
-            port=5433
+            port=5432
         )
         cursor = self.conn.cursor()
         cursor.execute(NGramDatastore.CREATE_TABLE_STMT)
@@ -71,6 +72,13 @@ class NGramDatastore:
         # optimize space
         cursor.execute("VACUUM FULL ngram_datastore")
         cursor.execute("REINDEX TABLE ngram_datastore")
+    
+    def get_size(self):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT pg_total_relation_size('ngram_datastore')")
+        row = cursor.fetchone()
+        cursor.close()
+        return int(row[0])
 
     def search(self, ngram):
         '''Can return either None or a tree'''
@@ -109,47 +117,27 @@ class NGramDatastoreBuilder:
     EXTENSION = 'pkl'
 
     def __init__(self, dataset_name: str, num_conversations: int, model_path: str, reader: Reader, 
-                 ngram_n: int, num_top_ngrams: int, include_all: bool, merge_ratio: float) -> None:
+                 max_ngram_n: int, num_top_ngrams: int, include_all: bool, merge_ratio: float) -> None:
         self.dataset_name = dataset_name
         self.num_conversations = num_conversations
         self.reader = reader
         self.model_path = model_path
-        self.ngram_n = ngram_n
+        self.max_ngram_n = max_ngram_n
         self.num_top_ngrams = num_top_ngrams
         self.merge_ratio = merge_ratio
         discard_tag = f"-merge{merge_ratio}" if merge_ratio != 0.0 else f"-top{num_top_ngrams}"
         self.include_all = include_all
         include_all_tag = "-include-all" if include_all else ""
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        self.datastore_dbname = f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}"
-        self.top0_backing_datastores = {} # a dict of backing dbnames for include-all option
+        self.datastore_dbname = f"{get_abbr_dataset_name(dataset_name)}-n{self.max_ngram_n}{include_all_tag}-convs{num_conversations}{discard_tag}"
+        self.top_cutoff_backing_datastores = {} # a dict of backing dbnames for include-all option
         if include_all:
-            for ngram in range(1, ngram_n+1):
-                dbname = f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{ngram}-convs{num_conversations}-top0"
-                self.top0_backing_datastores[ngram] = self.get_backing_datastore(dbname)
+            for ngram_n in range(1, self.max_ngram_n+1):
+                dbname = f"{get_abbr_dataset_name(dataset_name)}-n{ngram_n}-convs{num_conversations}-top{NGRAM_PICKLE_CUTOFFS[ngram_n]}"
+                self.top_cutoff_backing_datastores[ngram_n] = self.get_backing_datastore(dbname)
         else:
-            dbname = f"{NGramDatastoreBuilder.get_abbr_dataset_name(dataset_name)}-n{self.ngram_n}-convs{num_conversations}-top0"
-            self.top0_backing_datastores[self.ngram_n] = self.get_backing_datastore(dbname)
-
-    @staticmethod
-    def get_abbr_dataset_name(dataset_name: str) -> str:
-        if dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
-            return "sharegpt"
-        elif dataset_name == "bigcode/the-stack-dedup":
-            return "stack"
-        else:
-            raise AssertionError
-
-    def get_ngrams_from_dataset(self, num_ngram: int):
-        print("Getting ngrams from dataset")
-        if self.dataset_name == "Aeala/ShareGPT_Vicuna_unfiltered":
-            ngrams = get_ngrams_from_sharegpt(self.tokenizer, self.dataset_name, num_ngram, self.num_conversations, self.num_top_ngrams, self.merge_ratio)
-        elif self.dataset_name == "bigcode/the-stack-dedup":
-            raise AssertionError()
-        else:
-            print("We only support Aeala/ShareGPT_Vicuna_unfiltered or bigcode/the-stack datasets for now")
-            quit()
-        return ngrams
+            dbname = f"{get_abbr_dataset_name(dataset_name)}-n{self.max_ngram_n}-convs{num_conversations}-top{NGRAM_PICKLE_CUTOFFS[self.max_ngram_n]}"
+            self.top_cutoff_backing_datastores[self.max_ngram_n] = self.get_backing_datastore(dbname)
     
 
     def get_backing_datastore(self, dbname: str):
@@ -167,23 +155,23 @@ class NGramDatastoreBuilder:
         datastore.build_init()
 
         if self.include_all:
-            for num_ngram in range(1, self.ngram_n+1):
-                ngrams = self.get_ngrams_from_dataset(num_ngram)
-                top0_backing_datastore = self.top0_backing_datastores[num_ngram]
+            for ngram_n in range(1, self.max_ngram_n+1):
+                ngrams = get_ngrams_from_pickle(self.dataset_name, self.ngram_n)
+                top_cutoff_backing_datastore = self.top_cutoff_backing_datastores[ngram_n]
                 for ngram in tqdm(ngrams):
                     # The backing datastore is equivalent to the reader and is much faster to query
-                    if top0_backing_datastore != None:
-                        tree = top0_backing_datastore.get(ngram)
+                    if top_cutoff_backing_datastore != None:
+                        tree = top_cutoff_backing_datastore.get(ngram)
                     else:
                         tree = self.reader.search(list(ngram))
                     datastore.insert(ngram, tree)
         else:
-            ngrams = self.get_ngrams_from_dataset(self.ngram_n)
-            top0_backing_datastore = self.top0_backing_datastores[self.ngram_n]
+            ngrams = get_ngrams_from_pickle(self.dataset_name, self.max_ngram_n)
+            top_cutoff_backing_datastore = self.top_cutoff_backing_datastores[self.max_ngram_n]
             for ngram in tqdm(ngrams):
                 # The backing datastore is equivalent to the reader and is much faster to query
-                if top0_backing_datastore != None:
-                    tree = top0_backing_datastore.get(ngram)
+                if top_cutoff_backing_datastore != None:
+                    tree = top_cutoff_backing_datastore.get(ngram)
                     datastore.insert(ngram, tree)
                 else:
                     try:
