@@ -61,7 +61,7 @@ def rest_forward(input_ids, model, tokenizer, max_new_token, temperature, top_p,
     
     torch.cuda.synchronize()
     start_time = time.time()
-    for idx in tqdm(range(max_steps)): 
+    for idx in tqdm(range(max_steps), desc="gen_model_answer_rest.rest_forward.0"): 
         candidates, tree_candidates, draft_buffers = generate_candidates_and_draft_buffer(
                 logits,
                 input_ids,
@@ -149,7 +149,7 @@ def run_eval(
 
     chunk_size = len(questions) // (num_gpus_total // num_gpus_per_model) # // 2
     ans_handles = []
-    for i in tqdm(range(0, len(questions), chunk_size)):
+    for i in tqdm(range(0, len(questions), chunk_size), desc="gen_model_answer_rest.run_eval.0"):
         ans_handles.append(
             get_answers_func(
                 model_path,
@@ -283,7 +283,7 @@ def get_model_answers(
     print('Skipping warmup done')
 
     accept_lengths_tree = []
-    for question in tqdm(questions[:2]):
+    for question in tqdm(questions[:2], desc="gen_model_answer_rest.get_model_answers.0"):
         # if question["category"] in temperature_config:
         #     temperature = temperature_config[question["category"]]
         # else:

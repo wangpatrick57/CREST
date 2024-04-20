@@ -158,7 +158,7 @@ class NGramDatastoreBuilder:
             for ngram_n in range(1, self.max_ngram_n+1):
                 ngrams = get_ngrams_from_pickle(self.dataset_name, self.ngram_n)
                 top_cutoff_backing_datastore = self.top_cutoff_backing_datastores[ngram_n]
-                for ngram in tqdm(ngrams):
+                for ngram in tqdm(ngrams, desc="ngram_datastore.NGramDatastoreBuilder.build.0"):
                     # The backing datastore is equivalent to the reader and is much faster to query
                     if top_cutoff_backing_datastore != None:
                         tree = top_cutoff_backing_datastore.get(ngram)
@@ -168,7 +168,7 @@ class NGramDatastoreBuilder:
         else:
             ngrams = get_ngrams_from_pickle(self.dataset_name, self.max_ngram_n)
             top_cutoff_backing_datastore = self.top_cutoff_backing_datastores[self.max_ngram_n]
-            for ngram in tqdm(ngrams):
+            for ngram in tqdm(ngrams, desc="ngram_datastore.NGramDatastoreBuilder.build.1"):
                 # The backing datastore is equivalent to the reader and is much faster to query
                 if top_cutoff_backing_datastore != None:
                     tree = top_cutoff_backing_datastore.get(ngram)

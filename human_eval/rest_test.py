@@ -24,7 +24,7 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
     token_spans = list(range(2, max_token_span + 1))[::-1]
     print("token_spans: ", token_spans)
 
-    for sample in tqdm(dataset, total=len(dataset)):
+    for sample in tqdm(dataset, total=len(dataset), desc="rest_test.run_eval.0"):
         prompt = sample['prompt']
 
         accept_lengths_tree = []

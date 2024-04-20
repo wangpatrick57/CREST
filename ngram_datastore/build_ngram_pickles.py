@@ -25,7 +25,7 @@ def store_ngram_pickles(model_path: str, dataset_name: str, max_ngram_n: int) ->
     dataset_it = dataset if NUM_CONVERSATIONS == 0 else islice(dataset, NUM_CONVERSATIONS)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-    for sample in tqdm(dataset_it):
+    for sample in tqdm(dataset_it, desc="build_ngram_pickles.store_ngram_pickles.0"):
         token_list = tokenizer.encode(sample['content'])
 
         for ngram_n in range(1, max_ngram_n + 1):

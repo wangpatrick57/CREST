@@ -29,7 +29,7 @@ def run_eval(model, tokenizer, datastore, max_token_span, num_draft, temperature
     filtered_ngrams = get_filtered_ngrams(ngram_datastore_settings)
     dataset_it = dataset if num_benchmark_convs == 0 else islice(dataset, num_benchmark_convs)
 
-    for sample in tqdm(dataset_it, total=len(dataset_it) if num_benchmark_convs == 0 else num_benchmark_convs):
+    for sample in tqdm(dataset_it, total=len(dataset_it) if num_benchmark_convs == 0 else num_benchmark_convs, desc="virtual_rest_test.run_eval.0"):
         prompt = sample['prompt']
 
         accept_lengths_tree = []

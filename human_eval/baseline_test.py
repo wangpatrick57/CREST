@@ -18,7 +18,7 @@ def run_eval(model, tokenizer,temperature, top_p, max_new_token):
     avg_time_per_token_list = []
     avg_time_per_token_list_micro = []
 
-    for sample in tqdm(dataset, total=len(dataset)):
+    for sample in tqdm(dataset, total=len(dataset), desc="baseline_test.run_eval.0"):
         prompt = sample['prompt']
         with torch.inference_mode():
             past_key_values, past_key_values_data, current_length_data = initialize_past_key_values(model.base_model)
