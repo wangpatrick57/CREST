@@ -1,4 +1,4 @@
-# REST: Retrieval-Based Speculative Decoding
+# CREST: Compact Retrieval-Based Speculative Decoding
 
 ***If training's got you in a stew, take a REST and speed right through.***
 
