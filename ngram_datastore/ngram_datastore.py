@@ -93,6 +93,7 @@ class NGramDatastore:
         cursor = self.conn.cursor()
         cursor.execute(NGramDatastore.SELECT_STMT, (list(ngram),))
         row = cursor.fetchone()
+        assert row != None, f"Could not fetch ngram={ngram} when self.dbname={self.dbname}"
         cursor.close()
         compressed_pickled_tree = row[0]
         tree = pickle.loads(lzma.decompress(compressed_pickled_tree))
@@ -156,9 +157,10 @@ class NGramDatastoreBuilder:
 
         if self.include_all:
             for ngram_n in range(1, self.max_ngram_n+1):
-                ngram_datastore_settings = NGramDatastoreSettings(self.dataset_name, ngram_n, self.include_all, self.num_conversations, self.num_top_ngrams, self.merge_ratio)
+                # We pass False into self.include_all because we only want the n-grams of this value of n
+                ngram_datastore_settings = NGramDatastoreSettings(self.dataset_name, ngram_n, False, self.num_conversations, self.num_top_ngrams, self.merge_ratio)
                 ngrams = get_filtered_ngrams(ngram_datastore_settings)
-                top_cutoff_backing_datastore = self.top_cutoff_backing_datastores[ngram_n]
+                top_cutoff_backing_datastore: NGramDatastore = self.top_cutoff_backing_datastores[ngram_n]
                 for ngram in tqdm(ngrams, desc="ngram_datastore.NGramDatastoreBuilder.build.0"):
                     # The backing datastore is equivalent to the reader and is much faster to query
                     if top_cutoff_backing_datastore != None:

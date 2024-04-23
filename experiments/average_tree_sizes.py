@@ -5,7 +5,7 @@ import draftretriever
 import psycopg2
 
 if __name__ == "__main__":
-    dbnames = ["sharegpt_n1_convs0_top1597221", "sharegpt_n2_convs0_top1643949"]
+    dbnames = ["sharegpt_n1_convs0_top1597221", "sharegpt_n2_convs0_top1643949", "sharegpt_n3_convs0_top1839587", "sharegpt_n4_convs0_top2064567", "sharegpt_n5_convs0_top2171748", "stack_n1_convs0_top1597221", "stack_n2_convs0_top1643949", "stack_n3_convs0_top1839587", "stack_n4_convs0_top2064567", "stack_n5_convs0_top2171748"]
 
     for dbname in dbnames:
         conn = psycopg2.connect(
