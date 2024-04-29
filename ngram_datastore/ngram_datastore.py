@@ -1,3 +1,4 @@
+import os
 from draftretriever import Reader
 from ngram_datastore.ngram_datastore_settings import NGramDatastoreSettings
 from ngram_datastore.utils import NGRAM_PICKLE_CUTOFFS, get_abbr_dataset_name, get_filtered_ngrams
@@ -72,6 +73,9 @@ class NGramDatastore:
         # optimize space
         cursor.execute("VACUUM FULL ngram_datastore")
         cursor.execute("REINDEX TABLE ngram_datastore")
+
+        with open(os.path.expanduser(f"~/{self.dbname}"), "w") as f:
+            pass
     
     def get_size(self):
         cursor = self.conn.cursor()
@@ -93,7 +97,10 @@ class NGramDatastore:
         cursor = self.conn.cursor()
         cursor.execute(NGramDatastore.SELECT_STMT, (list(ngram),))
         row = cursor.fetchone()
-        assert row != None, f"Could not fetch ngram={ngram} when self.dbname={self.dbname}"
+
+        if row == None:
+            return None
+        
         cursor.close()
         compressed_pickled_tree = row[0]
         tree = pickle.loads(lzma.decompress(compressed_pickled_tree))
@@ -162,12 +169,23 @@ class NGramDatastoreBuilder:
                 ngrams = get_filtered_ngrams(ngram_datastore_settings)
                 top_cutoff_backing_datastore: NGramDatastore = self.top_cutoff_backing_datastores[ngram_n]
                 for ngram in tqdm(ngrams, desc="ngram_datastore.NGramDatastoreBuilder.build.0"):
-                    # The backing datastore is equivalent to the reader and is much faster to query
-                    if top_cutoff_backing_datastore != None:
-                        tree = top_cutoff_backing_datastore.get(ngram)
-                    else:
-                        tree = self.reader.search(list(ngram))
-                    datastore.insert(ngram, tree)
+                    try:
+                        # The backing datastore is equivalent to the reader and is much faster to query
+                        if top_cutoff_backing_datastore != None:
+                            tree = top_cutoff_backing_datastore.get(ngram)
+
+                            # Just in case it's not there
+                            if tree == None:
+                                tree = self.reader.search(list(ngram))
+                        else:
+                            tree = self.reader.search(list(ngram))
+                        datastore.insert(ngram, tree)
+                    except ValueError:
+                        # This is possible if cut_to_choices() doesn't cut it enough. See
+                        # lib.rs for more details.
+                        print("Encountered ValueError from search(). This is okay though.")
+                    except Exception:
+                        raise
         else:
             ngram_datastore_settings = NGramDatastoreSettings(self.dataset_name, self.max_ngram_n, self.include_all, self.num_conversations, self.num_top_ngrams, self.merge_ratio)
             ngrams = get_filtered_ngrams(ngram_datastore_settings)
